@@ -1,0 +1,1117 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<title>光の継承者 — はじまりの村 ルミナ</title>
+<style>
+  :root{
+    --ink:#181324;         /* UIパネルの深い夜色 */
+    --ink2:#241a37;
+    --gold:#e6c268;        /* 装飾の金 */
+    --gold-dim:#8f7433;
+    --parch:#f4e7c6;       /* 文字（羊皮紙色） */
+    --light:#7fe6d6;       /* “光”のモチーフ色 */
+    --rose:#d98a8a;
+  }
+  *{ margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ width:100%; height:100%; overflow:hidden; background:#0a0810; }
+  body{
+    touch-action:none; user-select:none; -webkit-user-select:none;
+    font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;
+  }
+  #game{ position:fixed; inset:0; }
+  canvas{ display:block; }
+
+  /* ---- チルトシフト風の被写界深度（上下をぼかしてジオラマ感を出す） ---- */
+  .tilt{ position:fixed; left:0; right:0; pointer-events:none; z-index:5; backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px); }
+  .tilt.top{ top:0; height:16%;
+    -webkit-mask-image:linear-gradient(to bottom, #000 0%, transparent 100%);
+    mask-image:linear-gradient(to bottom, #000 0%, transparent 100%); }
+  .tilt.bot{ bottom:0; height:26%;
+    -webkit-mask-image:linear-gradient(to top, #000 0%, transparent 100%);
+    mask-image:linear-gradient(to top, #000 0%, transparent 100%); }
+  /* 周辺減光＋ほのかな色補正 */
+  #grade{ position:fixed; inset:0; pointer-events:none; z-index:6;
+    background:
+      radial-gradient(120% 90% at 50% 42%, transparent 55%, rgba(20,10,30,.45) 100%),
+      linear-gradient(180deg, rgba(255,214,150,.06), rgba(30,20,60,.10)); }
+
+  /* ---- タイトルカード ---- */
+  #title{ position:fixed; inset:0; z-index:30; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:14px; text-align:center;
+    background:radial-gradient(120% 100% at 50% 30%, #241a3a, #0a0810 75%);
+    transition:opacity .8s ease; }
+  #title .kanji{ font-family:"Hiragino Mincho ProN","Yu Mincho",serif; color:var(--parch);
+    font-size:clamp(30px,8vw,64px); letter-spacing:.16em; text-shadow:0 0 24px rgba(127,230,214,.35); }
+  #title .kanji b{ color:var(--light); font-weight:700; }
+  #title .sub{ font-family:"Hiragino Mincho ProN","Yu Mincho",serif; color:var(--gold);
+    font-size:clamp(13px,3.6vw,18px); letter-spacing:.3em; opacity:.9; }
+  #title .rule{ width:min(70%,320px); height:1px; background:linear-gradient(90deg,transparent,var(--gold-dim),transparent); margin:6px 0; }
+  #start{ margin-top:18px; font-family:"Hiragino Mincho ProN",serif; color:var(--ink);
+    background:linear-gradient(180deg,#f6e8bf,#d9b455); border:none; border-radius:999px;
+    padding:13px 34px; font-size:16px; letter-spacing:.14em; box-shadow:0 6px 20px rgba(0,0,0,.5), inset 0 1px 0 #fff8;
+    cursor:pointer; }
+  #start:active{ transform:translateY(1px); }
+  #title .hint{ color:#b9a9d4; font-size:12px; letter-spacing:.08em; margin-top:6px; }
+
+  /* ---- 目的表示 ---- */
+  #quest{ position:fixed; top:calc(env(safe-area-inset-top,0) + 14px); left:50%; transform:translateX(-50%);
+    z-index:12; display:flex; align-items:center; gap:9px; padding:8px 16px 8px 14px;
+    background:linear-gradient(180deg, rgba(26,19,40,.86), rgba(20,14,32,.86));
+    border:1px solid var(--gold-dim); border-radius:10px; color:var(--parch);
+    font-size:13px; letter-spacing:.04em; box-shadow:0 4px 16px rgba(0,0,0,.4);
+    opacity:0; transition:opacity .5s; max-width:88vw; }
+  #quest .dot{ width:7px; height:7px; border-radius:50%; background:var(--light); box-shadow:0 0 10px var(--light); flex:0 0 auto; }
+
+  /* ---- 会話ウィンドウ ---- */
+  #dialog{ position:fixed; left:50%; bottom:calc(env(safe-area-inset-bottom,0) + 18px); transform:translateX(-50%);
+    z-index:20; width:min(94vw,640px); display:none; }
+  #dialog .box{ position:relative;
+    background:linear-gradient(180deg, rgba(28,20,44,.96), rgba(18,13,30,.97));
+    border:1px solid var(--gold-dim); border-radius:14px; padding:16px 18px 18px;
+    box-shadow:0 10px 30px rgba(0,0,0,.55), inset 0 0 0 1px rgba(230,194,104,.12); }
+  #dialog .box::before{ content:""; position:absolute; inset:5px; border-radius:10px;
+    border:1px solid rgba(230,194,104,.22); pointer-events:none; }
+  #dialog .name{ position:absolute; top:-13px; left:16px;
+    font-family:"Hiragino Mincho ProN",serif; color:var(--ink);
+    background:linear-gradient(180deg,#f0dfae,#d3ad4d); padding:3px 14px; border-radius:8px;
+    font-size:13px; letter-spacing:.08em; box-shadow:0 2px 8px rgba(0,0,0,.4); }
+  #dialog .text{ color:var(--parch); font-size:16px; line-height:1.75; min-height:3.5em; letter-spacing:.02em; }
+  #dialog .next{ position:absolute; right:16px; bottom:12px; color:var(--light);
+    font-size:12px; letter-spacing:.1em; animation:blink 1.1s infinite; }
+  @keyframes blink{ 50%{ opacity:.25; } }
+
+  /* ---- 操作UI ---- */
+  #hud{ position:fixed; inset:0; z-index:10; pointer-events:none; }
+  /* バーチャルパッド */
+  #stick{ position:absolute; left:calc(env(safe-area-inset-left,0) + 22px); bottom:calc(env(safe-area-inset-bottom,0) + 30px);
+    width:132px; height:132px; border-radius:50%; pointer-events:auto;
+    background:radial-gradient(circle at 50% 45%, rgba(70,55,100,.30), rgba(30,22,48,.22));
+    border:1px solid rgba(230,194,104,.28); box-shadow:inset 0 0 24px rgba(0,0,0,.35); touch-action:none; }
+  #knob{ position:absolute; left:50%; top:50%; width:56px; height:56px; margin:-28px 0 0 -28px; border-radius:50%;
+    background:radial-gradient(circle at 40% 35%, #f2e6c0, #caa64d); border:1px solid #8f7433;
+    box-shadow:0 4px 12px rgba(0,0,0,.5), inset 0 1px 0 #fff8; }
+  /* アクションボタン */
+  #act{ position:absolute; right:calc(env(safe-area-inset-right,0) + 26px); bottom:calc(env(safe-area-inset-bottom,0) + 48px);
+    width:96px; height:96px; border-radius:50%; pointer-events:auto; touch-action:none;
+    display:flex; align-items:center; justify-content:center; font-family:"Hiragino Mincho ProN",serif;
+    color:var(--ink); font-size:16px; letter-spacing:.06em; line-height:1.1; text-align:center;
+    background:radial-gradient(circle at 42% 35%, #a9f0e4, #4bbfae 70%, #2f8f81);
+    border:2px solid #cdeee7; box-shadow:0 6px 18px rgba(0,0,0,.5), inset 0 2px 4px rgba(255,255,255,.5);
+    opacity:.55; transition:opacity .15s, transform .08s; }
+  #act.show{ opacity:1; }
+  #act:active{ transform:scale(.94); }
+  /* 近接プロンプト */
+  #prompt{ position:fixed; z-index:11; pointer-events:none; transform:translate(-50%,-100%);
+    color:var(--ink); background:linear-gradient(180deg,#f4e7c6,#e6c268); padding:3px 10px; border-radius:8px;
+    font-size:12px; letter-spacing:.06em; white-space:nowrap; box-shadow:0 3px 10px rgba(0,0,0,.4);
+    display:none; }
+  #prompt::after{ content:""; position:absolute; left:50%; bottom:-5px; transform:translateX(-50%);
+    border:5px solid transparent; border-top-color:#e6c268; }
+
+  #hint-controls{ position:fixed; left:50%; bottom:calc(env(safe-area-inset-bottom,0) + 176px); transform:translateX(-50%);
+    z-index:9; color:#cdbff0; font-size:12px; letter-spacing:.06em; text-align:center; opacity:0; transition:opacity .6s;
+    text-shadow:0 1px 4px #000; pointer-events:none; }
+
+  /* ---- ステータスHUD ---- */
+  #stats{ position:fixed; top:calc(env(safe-area-inset-top,0) + 12px); left:calc(env(safe-area-inset-left,0) + 12px);
+    z-index:12; width:186px; padding:9px 11px 10px;
+    background:linear-gradient(180deg, rgba(24,17,38,.88), rgba(16,11,28,.9));
+    border:1px solid var(--gold-dim); border-radius:11px; color:var(--parch);
+    box-shadow:0 4px 16px rgba(0,0,0,.45); font-size:12px; letter-spacing:.03em; display:none; }
+  #stats .row{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:5px; }
+  #stats .lv{ font-family:"Hiragino Mincho ProN",serif; }
+  #stats .lv b{ color:var(--light); font-size:15px; }
+  #stats .gold b{ color:var(--gold); }
+  #stats .bar{ position:relative; height:11px; border-radius:6px; overflow:hidden; margin-bottom:5px;
+    background:rgba(0,0,0,.45); border:1px solid rgba(230,194,104,.25); }
+  #stats .bar i{ position:absolute; left:0; top:0; bottom:0; display:block; border-radius:6px; transition:width .18s; }
+  #stats .hp i{ background:linear-gradient(180deg,#ff8f7a,#d84a3a); }
+  #stats .xp{ height:6px; } #stats .xp i{ background:linear-gradient(180deg,#8fe6d6,#3fb8a6); }
+  #stats .bar span{ position:absolute; inset:0; text-align:center; font-size:9px; line-height:11px; color:#fff; text-shadow:0 1px 1px #000; }
+  #stats .gear{ margin-top:6px; font-size:11px; color:#e8dcc0; line-height:1.5; }
+
+  /* ---- 回避ボタン ---- */
+  #dodge{ position:absolute; right:calc(env(safe-area-inset-right,0) + 130px); bottom:calc(env(safe-area-inset-bottom,0) + 54px);
+    width:66px; height:66px; border-radius:50%; pointer-events:auto; touch-action:none;
+    display:none; align-items:center; justify-content:center; font-family:"Hiragino Mincho ProN",serif;
+    color:#12202a; font-size:13px;
+    background:radial-gradient(circle at 42% 35%, #cfe0ff, #7fa0d6 72%, #5a78ad);
+    border:2px solid #dbe6ff; box-shadow:0 5px 14px rgba(0,0,0,.5), inset 0 2px 3px rgba(255,255,255,.5);
+    opacity:.92; transition:transform .08s, opacity .15s; }
+  #dodge.cool{ opacity:.4; }
+  #dodge:active{ transform:scale(.92); }
+  /* アクションボタンの戦闘モード配色 */
+  #act.combat{ background:radial-gradient(circle at 42% 35%, #ffb27a, #e0663a 68%, #b5432a); border-color:#ffd7bd; color:#2a1208; }
+
+  /* ---- ゾーン表示 ---- */
+  #banner{ position:fixed; top:34%; left:50%; transform:translate(-50%,-50%); z-index:14; pointer-events:none;
+    text-align:center; opacity:0; transition:opacity .4s; }
+  #banner .b1{ font-family:"Hiragino Mincho ProN",serif; color:var(--parch); font-size:clamp(20px,5.4vw,30px);
+    letter-spacing:.2em; text-shadow:0 2px 14px rgba(0,0,0,.6); }
+  #banner .b2{ color:var(--gold); font-size:12px; letter-spacing:.34em; margin-top:4px; }
+
+  /* ---- 浮遊ダメージ/報酬テキスト ---- */
+  .float{ position:fixed; z-index:15; pointer-events:none; transform:translate(-50%,-50%);
+    font-family:"Hiragino Mincho ProN",serif; font-weight:700; font-size:16px; text-shadow:0 2px 4px #000,0 0 2px #000;
+    animation:floatUp .85s ease-out forwards; white-space:nowrap; }
+  @keyframes floatUp{ 0%{ opacity:0; transform:translate(-50%,-30%) scale(.7);} 15%{ opacity:1; transform:translate(-50%,-60%) scale(1.1);} 100%{ opacity:0; transform:translate(-50%,-160%) scale(1);} }
+  .float.big{ font-size:22px; }
+
+  /* ---- 敵HPバー ---- */
+  .monhp{ position:fixed; z-index:13; pointer-events:none; transform:translate(-50%,-50%);
+    width:44px; height:6px; border-radius:4px; background:rgba(0,0,0,.55); border:1px solid rgba(0,0,0,.6);
+    box-shadow:0 1px 3px rgba(0,0,0,.5); display:none; }
+  .monhp i{ display:block; height:100%; border-radius:4px; background:linear-gradient(180deg,#ff8f7a,#d63a2f); }
+
+  /* ---- ショップ画面 ---- */
+  #shop{ position:fixed; inset:0; z-index:40; display:none; align-items:center; justify-content:center;
+    background:rgba(8,6,16,.62); backdrop-filter:blur(2px); -webkit-backdrop-filter:blur(2px); }
+  #shop .panel{ width:min(94vw,460px); max-height:82vh; display:flex; flex-direction:column;
+    background:linear-gradient(180deg, rgba(30,22,46,.98), rgba(18,13,30,.99));
+    border:1px solid var(--gold-dim); border-radius:16px; box-shadow:0 16px 50px rgba(0,0,0,.6);
+    overflow:hidden; }
+  #shop .head{ display:flex; justify-content:space-between; align-items:center; padding:14px 18px;
+    border-bottom:1px solid rgba(230,194,104,.22); }
+  #shop .head #shop-name{ font-family:"Hiragino Mincho ProN",serif; color:var(--parch); font-size:18px; letter-spacing:.1em; }
+  #shop .head #shop-gold{ color:var(--gold); font-size:14px; }
+  #shop-list{ overflow-y:auto; padding:10px 12px; -webkit-overflow-scrolling:touch; }
+  #shop .item{ display:flex; align-items:center; gap:10px; padding:11px 12px; margin-bottom:8px;
+    background:rgba(255,255,255,.03); border:1px solid rgba(230,194,104,.18); border-radius:11px; cursor:pointer;
+    transition:background .12s, border-color .12s; }
+  #shop .item:active{ background:rgba(230,194,104,.12); }
+  #shop .item.equipped{ border-color:var(--light); box-shadow:inset 0 0 0 1px rgba(127,230,214,.35); }
+  #shop .item.locked{ opacity:.55; }
+  #shop .item .ic{ font-size:22px; width:26px; text-align:center; }
+  #shop .item .nm{ flex:1; color:var(--parch); }
+  #shop .item .nm small{ display:block; color:#bcae90; font-size:11px; margin-top:2px; }
+  #shop .item .pr{ font-size:13px; color:var(--gold); text-align:right; min-width:64px; }
+  #shop .item .pr .tag{ display:block; font-size:11px; margin-top:2px; }
+  #shop .item .pr .own{ color:var(--light); } #shop .item .pr .eq{ color:#fff; }
+  #shop-close{ margin:10px 14px 16px; padding:12px; border:none; border-radius:10px; cursor:pointer;
+    font-family:"Hiragino Mincho ProN",serif; color:var(--ink); letter-spacing:.14em; font-size:15px;
+    background:linear-gradient(180deg,#f0dfae,#d3ad4d); box-shadow:0 4px 12px rgba(0,0,0,.4); }
+</style>
+</head>
+<body>
+  <div id="game"></div>
+
+  <div class="tilt top"></div>
+  <div class="tilt bot"></div>
+  <div id="grade"></div>
+
+  <div id="quest"><span class="dot"></span><span id="quest-text">村の人と はなしてみよう</span></div>
+
+  <div id="stats">
+    <div class="row"><span class="lv">Lv <b id="s-lv">1</b></span><span class="gold">🪙 <b id="s-gold">0</b></span></div>
+    <div class="bar hp"><i id="s-hp" style="width:100%"></i><span id="s-hptext">40/40</span></div>
+    <div class="bar xp"><i id="s-xp" style="width:0%"></i></div>
+    <div class="gear" id="s-gear">⚔ こんぼう ／ 🛡 旅の服</div>
+  </div>
+
+  <div id="banner"><div class="b1"></div><div class="b2"></div></div>
+
+  <div id="hud">
+    <div id="stick"><div id="knob"></div></div>
+    <div id="dodge">回避</div>
+    <div id="act">はなす</div>
+  </div>
+  <div id="prompt"></div>
+  <div id="hint-controls">左：移動　／　右：こうげき　／　青：回避（村の外に魔物）</div>
+
+  <div id="dialog"><div class="box">
+    <div class="name" id="d-name">？？？</div>
+    <div class="text" id="d-text"></div>
+    <div class="next" id="d-next">▼ タップ</div>
+  </div></div>
+
+  <div id="shop"><div class="panel">
+    <div class="head"><span id="shop-name">武器屋</span><span id="shop-gold">🪙 0</span></div>
+    <div id="shop-list"></div>
+    <button id="shop-close">とじる</button>
+  </div></div>
+
+  <div id="title">
+    <div class="sub">HD-2D FANTASY</div>
+    <div class="kanji"><b>光</b>の継承者</div>
+    <div class="rule"></div>
+    <div class="sub">はじまりの村 ルミナ</div>
+    <button id="start">はじめる</button>
+    <div class="hint">スマホは横向き推奨・音は出ません</div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script>
+  (function(){
+    "use strict";
+    const THREELoaded = typeof THREE !== "undefined";
+    if(!THREELoaded){ document.getElementById("title").innerHTML="<div class='sub'>3Dライブラリの読み込みに失敗しました。<br>ネット接続を確認して再読み込みしてください。</div>"; return; }
+
+    // ============================================================
+    //  基本セットアップ
+    // ============================================================
+    const scene = new THREE.Scene();
+    const SKY = 0xf3c98b;                 // 夕方寄りの暖色
+    scene.fog = new THREE.Fog(0xe9b98a, 32, 96);   // 遠景を霞ませてジオラマ感
+
+    const renderer = new THREE.WebGLRenderer({ antialias:true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.setClearColor(SKY, 1);
+    document.getElementById("game").appendChild(renderer.domElement);
+
+    const camera = new THREE.PerspectiveCamera(30, innerWidth/innerHeight, 0.1, 220);
+    const CAM_OFF = new THREE.Vector3(0, 10.5, 12.5);   // 見下ろし角のHD-2D構図
+
+    // 空グラデーション背景
+    (function(){
+      const c=document.createElement("canvas"); c.width=8; c.height=256; const g=c.getContext("2d");
+      const grd=g.createLinearGradient(0,0,0,256);
+      grd.addColorStop(0,"#8fb8e8"); grd.addColorStop(.45,"#e9c79a"); grd.addColorStop(1,"#f6d9a6");
+      g.fillStyle=grd; g.fillRect(0,0,8,256);
+      const tex=new THREE.CanvasTexture(c); tex.encoding=THREE.sRGBEncoding; scene.background=tex;
+    })();
+
+    // ライト（暖色の日差し＋空の反射光）
+    const hemi = new THREE.HemisphereLight(0xfff1d6, 0x4a5a4a, 0.95); scene.add(hemi);
+    const sun = new THREE.DirectionalLight(0xffdca0, 1.15);
+    sun.position.set(-14, 22, 10); scene.add(sun);
+    scene.add(new THREE.AmbientLight(0x6a6480, 0.35));
+
+    // ============================================================
+    //  ドット絵テクスチャ生成（procedural pixel-art）
+    // ============================================================
+    function pixTex(draw, w, h){
+      const c=document.createElement("canvas"); c.width=w; c.height=h;
+      const g=c.getContext("2d"); g.imageSmoothingEnabled=false; draw(g,w,h);
+      const t=new THREE.CanvasTexture(c);
+      t.magFilter=THREE.NearestFilter; t.minFilter=THREE.NearestFilter;
+      t.encoding=THREE.sRGBEncoding; t.generateMipmaps=false;
+      return t;
+    }
+    // 太いドット矩形
+    function rect(g,x,y,w,h,col){ g.fillStyle=col; g.fillRect(x,y,w,h); }
+
+    // ---- 人物スプライトシート（4方向 × 3フレーム歩行） ----
+    // レイアウト: 列=フレーム(0,1,2) / 行=向き(下,上,左,右) 各セル24x32
+    const CW=24, CH=32, COLS=3, ROWS=4;
+    const DIR_ROW={ down:0, up:1, left:2, right:3 };
+
+    // 1体分のポーズを1セルへ描く（dirは down/up/left、rightは呼び出し側で反転）
+    function drawPose(g, ox, oy, P, dir, frame){
+      const R=(x,y,w,h,c)=>{ if(!c) return; g.fillStyle=c; g.fillRect(ox+x,oy+y,w,h); };
+      const sw = frame===0?1 : frame===2?-1 : 0;   // 歩行スイング量(-1/0/1)
+
+      if(dir==="down" || dir==="up"){
+        // マント（背面はやや広め）
+        if(P.cape) R(dir==="up"?5:6, 12, dir==="up"?14:12, 9, P.cape);
+        // 頭
+        if(dir==="up"){
+          R(8,3,8,4,P.hair); R(7,4,10,8,P.hair);           // 後頭部（顔は見えない）
+        } else {
+          R(8,3,8,4,P.hair); R(7,4,10,4,P.hair); R(7,5,2,3,P.hair); R(15,5,2,3,P.hair);
+          R(8,6,8,6,P.skin);                               // 顔
+          R(9,8,2,2,P.eye); R(13,8,2,2,P.eye);             // 目
+        }
+        // 胴
+        R(7,12,10,9,P.body); R(8,13,8,2,P.body2); R(7,16,10,2,P.belt);
+        // 腕（前後にスイング）
+        R(5,12-Math.max(0,-sw),2,7,P.body2); R(5,18-Math.max(0,-sw),2,2,P.skin);
+        R(17,12-Math.max(0,sw),2,7,P.body2); R(17,18-Math.max(0,sw),2,2,P.skin);
+        // 脚＆ブーツ（左右交互に踏み出す）
+        R(8,21,3,6,P.legs); R(13,21,3,6,P.legs);
+        if(frame===0){ R(7,27,3,3,P.boot); R(14,28,3,2,P.boot); }
+        else if(frame===2){ R(14,27,3,3,P.boot); R(7,28,3,2,P.boot); }
+        else { R(8,27,3,3,P.boot); R(13,27,3,3,P.boot); }
+      } else { // left（横向きプロフィール）
+        if(P.cape) R(13,12,4,10,P.cape);                   // 背中側(右)へ流れるマント
+        // 頭（左向き）
+        R(8,3,7,5,P.hair); R(13,5,3,5,P.hair);             // 頭頂＋後頭
+        R(9,6,5,5,P.skin); R(8,8,1,2,P.skin);              // 顔＋鼻先
+        R(10,8,1,2,P.eye);                                 // 目
+        // 胴
+        R(9,12,7,9,P.body); R(9,13,5,2,P.body2); R(9,16,7,2,P.belt);
+        // 手前の腕（前後スイング）
+        const ax=10-sw*2;
+        R(ax,13,2,6,P.body2); R(ax,18,2,2,P.skin);
+        // 脚＆ブーツ（前後に開閉）
+        if(frame===0){ R(7,22,3,5,P.legs); R(6,27,4,3,P.boot); R(12,22,3,5,P.legs); R(13,27,3,3,P.boot); }
+        else if(frame===2){ R(11,21,3,6,P.legs); R(11,27,3,3,P.boot); R(8,23,3,4,P.legs); R(7,28,4,2,P.boot); }
+        else { R(9,21,3,6,P.legs); R(12,21,3,6,P.legs); R(9,27,3,3,P.boot); R(12,27,3,3,P.boot); }
+      }
+    }
+
+    // 色替え可能な人物シートを生成 → offsetでセルを切り替えて使う
+    function makePersonSheet(col){
+      const P={ skin:"#f2c79a", eye:"#2a1a12", hair:"#6b3f1d", body:"#3b6bd6", body2:"#2a4fa0",
+                belt:"#3a2a1a", legs:"#43351f", boot:"#241a10", cape:null };
+      Object.assign(P, col||{});
+      const tex=pixTex((g)=>{
+        for(let f=0; f<COLS; f++){
+          drawPose(g, f*CW, DIR_ROW.down*CH, P, "down", f);
+          drawPose(g, f*CW, DIR_ROW.up  *CH, P, "up",   f);
+          drawPose(g, f*CW, DIR_ROW.left*CH, P, "left", f);
+          // 右向きは左向きを水平反転
+          g.save(); g.translate(f*CW+CW, DIR_ROW.right*CH); g.scale(-1,1);
+          drawPose(g, 0, 0, P, "left", f); g.restore();
+        }
+      }, CW*COLS, CH*ROWS);
+      tex.wrapS=tex.wrapT=THREE.ClampToEdgeWrapping;
+      tex.repeat.set(1/COLS, 1/ROWS);
+      return tex;
+    }
+    // アニメ状態を作り、向き・フレームでセルを選ぶ
+    function makeAnim(tex){ const a={tex, dir:"down", frame:1, t:0, step:0}; setCell(a,"down",1); return a; }
+    function setCell(a, dir, frame){ a.dir=dir; a.frame=frame;
+      a.tex.offset.set(frame/COLS, 1-(DIR_ROW[dir]+1)/ROWS); }
+    const WALK_SEQ=[1,0,1,2];   // 自然な歩行サイクル
+    function stepAnim(a, dir, moving, dt){
+      if(moving){ a.t+=dt; if(a.t>0.13){ a.t=0; a.step=(a.step+1)%WALK_SEQ.length; }
+        setCell(a, dir, WALK_SEQ[a.step]); }
+      else { a.t=0; a.step=0; setCell(a, dir, 1); }
+    }
+
+    // 木（2Dスプライト）
+    function makeTree(){
+      return pixTex((g)=>{
+        // 48x64
+        rect(g,21,44,6,18,"#5a3b22"); rect(g,23,44,2,18,"#734d2c"); // 幹
+        // 葉（層）
+        const fol=["#2f6b3a","#3c8047","#4d9455"];
+        function blob(cx,cy,r,c){ g.fillStyle=c;
+          for(let y=-r;y<=r;y++) for(let x=-r;x<=r;x++){ if(x*x+y*y<=r*r) g.fillRect(cx+x,cy+y,1,1); } }
+        blob(24,26,17,fol[0]); blob(16,32,12,fol[0]); blob(33,32,12,fol[0]);
+        blob(24,22,14,fol[1]); blob(18,30,9,fol[1]); blob(31,30,9,fol[1]);
+        blob(23,18,9,fol[2]); blob(28,24,6,fol[2]);
+      }, 48, 64);
+    }
+    // 茂み・花・岩など小物
+    function makeBush(){ return pixTex((g)=>{
+      const c=["#3c7a46","#4d9455","#5fae64"];
+      function blob(cx,cy,r,col){ g.fillStyle=col; for(let y=-r;y<=r;y++)for(let x=-r;x<=r;x++) if(x*x+y*y<=r*r) g.fillRect(cx+x,cy+y,1,1);}
+      blob(16,20,11,c[0]); blob(9,22,7,c[0]); blob(23,22,7,c[0]);
+      blob(15,16,8,c[1]); blob(19,20,6,c[2]);
+    }, 32, 28); }
+    function makeFlower(col){ return pixTex((g)=>{
+      rect(g,7,10,2,6,"#3c7a46");
+      rect(g,6,4,4,4,col); rect(g,4,6,2,2,col); rect(g,10,6,2,2,col); rect(g,7,3,2,2,col); rect(g,7,8,2,2,col);
+      rect(g,7,6,2,2,"#ffe08a");
+    }, 16, 18); }
+    function makeSign(){ return pixTex((g)=>{
+      rect(g,14,16,4,14,"#5a3b22");
+      rect(g,4,4,24,14,"#8a5a32"); rect(g,5,5,22,12,"#a9713f");
+      rect(g,8,8,16,2,"#5a3b22"); rect(g,8,12,12,2,"#5a3b22");
+    }, 32, 32); }
+
+    // 楕円塗り（ドット）
+    function ellip(g,cx,cy,rx,ry,c){ g.fillStyle=c;
+      for(let y=-ry;y<=ry;y++) for(let x=-rx;x<=rx;x++){ if((x*x)/(rx*rx)+(y*y)/(ry*ry)<=1) g.fillRect(cx+x,cy+y,1,1); } }
+
+    // ---- モンスター ----
+    function makeSlime(){ return pixTex((g)=>{
+      ellip(g,12,15,10,8,"#4d9455"); ellip(g,12,15,10,7,"#5fae64");
+      rect(g,2,17,20,4,"#4d9455");
+      ellip(g,9,11,4,3,"#8fd08a");               // ハイライト
+      rect(g,8,13,2,3,"#20351f"); rect(g,14,13,2,3,"#20351f"); // 目
+      rect(g,10,18,4,1,"#2f6b3a");               // 口
+    }, 24, 24); }
+    function makeGoblin(){ return pixTex((g)=>{
+      const sk="#6fae54", sk2="#5a9445";
+      rect(g,9,4,6,5,sk); rect(g,6,5,3,2,sk); rect(g,15,5,3,2,sk);   // 頭＋耳
+      rect(g,9,6,2,1,"#c0303a"); rect(g,13,6,2,1,"#c0303a");        // 目
+      rect(g,10,8,4,1,"#3a5a2a");                                    // 口
+      rect(g,8,9,8,8,"#7a5230"); rect(g,8,9,8,2,sk2);               // 胴（腰布）
+      rect(g,6,10,2,6,sk); rect(g,16,10,2,6,sk);                    // 腕
+      rect(g,17,6,2,10,"#6b4a2c"); rect(g,16,5,4,3,"#8a6a3a");      // こん棒
+      rect(g,9,17,2,6,sk2); rect(g,13,17,2,6,sk2);                  // 脚
+    }, 24, 28); }
+    function makeWolf(){ return pixTex((g)=>{
+      const b="#7a7d86", b2="#63666e", d="#4a4d54";
+      ellip(g,17,12,9,5,b); rect(g,4,8,8,6,b);                       // 胴＋頭
+      rect(g,3,6,3,3,b2); rect(g,7,5,3,3,b2);                        // 耳
+      rect(g,4,9,2,2,"#d0d0d0"); rect(g,4,9,1,1,"#c03a2a");          // 目
+      rect(g,2,12,3,2,d);                                            // 鼻先
+      rect(g,9,15,2,6,b2); rect(g,13,15,2,6,b2); rect(g,18,15,2,6,b2); rect(g,22,15,2,6,b2); // 脚
+      rect(g,25,9,4,2,b2); rect(g,28,8,2,2,b);                       // 尾
+    }, 32, 24); }
+    function makeOgre(){ return pixTex((g)=>{
+      const sk="#8a7f6a", sk2="#6f6552", d="#4a4234";
+      ellip(g,20,28,14,13,sk); ellip(g,20,28,14,12,"#978b73");      // 胴
+      rect(g,15,4,10,8,sk); rect(g,15,4,10,2,sk2);                  // 頭
+      rect(g,17,7,2,2,"#c0303a"); rect(g,22,7,2,2,"#c0303a");       // 目
+      rect(g,17,11,7,2,"#3a3228");                                   // 口
+      rect(g,18,3,1,2,"#efe"); rect(g,22,3,1,2,"#efe");             // 牙
+      rect(g,5,16,5,16,sk); rect(g,30,16,5,16,sk);                  // 腕
+      rect(g,2,10,7,10,"#6b4a2c"); rect(g,1,8,9,4,"#8a6a3a");       // 大こん棒
+      rect(g,13,38,7,6,sk2); rect(g,22,38,7,6,sk2);                 // 脚
+    }, 40, 46); }
+
+    // ---- フィールドの岩 ----
+    function makeRock(){ return pixTex((g)=>{
+      const a="#8b8b93", b="#6f6f77", c="#a7a7ae";
+      ellip(g,16,20,13,9,b); ellip(g,16,18,12,8,a);
+      rect(g,8,12,6,4,c); rect(g,18,14,5,3,c);
+      rect(g,3,22,26,4,b);
+    }, 32, 30); }
+
+    // ---- ショップ看板アイコン ----
+    function makeSwordIcon(){ return pixTex((g)=>{
+      for(let i=0;i<12;i++){ rect(g,10+i,20-i,2,2,"#d7dde6"); rect(g,11+i,21-i,1,1,"#f4f8ff"); } // 刃
+      rect(g,8,20,7,3,"#caa64d"); rect(g,10,22,3,6,"#8a6a3a");       // 鍔＋柄
+    }, 32, 32); }
+    function makeShieldIcon(){ return pixTex((g)=>{
+      const s="#6f86c4", s2="#4f66a4", r="#caa64d";
+      for(let y=4;y<26;y++){ const w=Math.round(11*(1-Math.pow((y-4)/22,2))); rect(g,16-w,y,w*2,1, y<20?s:s2); }
+      rect(g,15,7,2,16,r); rect(g,8,12,16,2,r);                      // 十字
+    }, 32, 32); }
+
+    // 地面テクスチャ（草＋土の小道）
+    function groundTexture(){
+      const S=1024; const c=document.createElement("canvas"); c.width=c.height=S; const g=c.getContext("2d");
+      g.fillStyle="#6ea24d"; g.fillRect(0,0,S,S);
+      // 草のむら
+      for(let i=0;i<26000;i++){ const x=Math.random()*S,y=Math.random()*S;
+        const t=Math.random(); g.fillStyle=t<.5?"#5f9243":(t<.8?"#79ad57":"#548039");
+        g.fillRect(x,y,2,2); }
+      // 中央広場の土＋十字路
+      g.fillStyle="#c9a56b";
+      g.beginPath(); g.arc(S/2,S/2,120,0,7); g.fill();
+      g.fillStyle="#bd9860";
+      g.fillRect(S/2-46,0,92,S); g.fillRect(0,S/2-46,S,92);
+      // 道の縁のにじみ
+      for(let i=0;i<9000;i++){ const a=Math.random()*7,r=118+Math.random()*22;
+        g.fillStyle=Math.random()<.5?"#b5905a":"#6ea24d";
+        g.fillRect(S/2+Math.cos(a)*r,S/2+Math.sin(a)*r,2,2); }
+      const t=new THREE.CanvasTexture(c); t.encoding=THREE.sRGBEncoding; t.anisotropy=4; return t;
+    }
+
+    // 接地影（ブロブシャドウ）
+    const shadowTex = (function(){
+      const c=document.createElement("canvas"); c.width=c.height=64; const g=c.getContext("2d");
+      const grd=g.createRadialGradient(32,32,2,32,32,30);
+      grd.addColorStop(0,"rgba(0,0,0,.42)"); grd.addColorStop(1,"rgba(0,0,0,0)");
+      g.fillStyle=grd; g.fillRect(0,0,64,64);
+      return new THREE.CanvasTexture(c);
+    })();
+    const shadowMat = new THREE.MeshBasicMaterial({ map:shadowTex, transparent:true, depthWrite:false });
+    function addShadow(x,z,s){ const m=new THREE.Mesh(new THREE.PlaneGeometry(s,s), shadowMat);
+      m.rotation.x=-Math.PI/2; m.position.set(x,0.02,z); scene.add(m); }
+
+    // ============================================================
+    //  ワールド構築
+    // ============================================================
+    const solids=[];  // 衝突（円） {x,z,r}
+    function addSolid(x,z,r){ solids.push({x,z,r}); }
+
+    // 地面
+    const ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(180,180),
+      new THREE.MeshLambertMaterial({ map:groundTexture() })
+    );
+    ground.rotation.x=-Math.PI/2; scene.add(ground);
+
+    // ビルボード（常にカメラを向く2Dスプライト）
+    const billboards=[];
+    function makeBillboard(tex, w, h){
+      const geo=new THREE.PlaneGeometry(w,h); geo.translate(0,h/2,0); // 足元を原点に
+      const mat=new THREE.MeshBasicMaterial({ map:tex, transparent:true, alphaTest:0.5, side:THREE.DoubleSide });
+      const m=new THREE.Mesh(geo,mat); m.userData.billboard=true; billboards.push(m); scene.add(m); return m;
+    }
+
+    // --- 家（ローポリ3D：HD-2Dのジオラマ部分） ---
+    function makeHouse(x,z,rot,wallCol,roofCol){
+      const g=new THREE.Group(); g.position.set(x,0,z); g.rotation.y=rot;
+      const wall=new THREE.Mesh(new THREE.BoxGeometry(4.4,3,4),
+        new THREE.MeshLambertMaterial({color:wallCol}));
+      wall.position.y=1.5; g.add(wall);
+      // 木組み
+      const trim=new THREE.MeshLambertMaterial({color:0x6b4a2c});
+      [[-2.2,1.5,0,0.15,3,4],[2.2,1.5,0,0.15,3,4],[0,3,0,4.4,0.16,4]].forEach(p=>{
+        const b=new THREE.Mesh(new THREE.BoxGeometry(p[3],p[4],p[5]),trim); b.position.set(p[0],p[1],p[2]); g.add(b);
+      });
+      // 屋根（四角錐）
+      const roof=new THREE.Mesh(new THREE.ConeGeometry(3.7,2.2,4),
+        new THREE.MeshLambertMaterial({color:roofCol}));
+      roof.position.y=4.1; roof.rotation.y=Math.PI/4; g.add(roof);
+      // ドア
+      const door=new THREE.Mesh(new THREE.BoxGeometry(1.1,1.8,0.2),
+        new THREE.MeshLambertMaterial({color:0x4a2f1a}));
+      door.position.set(0,0.9,2.02); g.add(door);
+      // 窓（ほのかに発光）
+      const winMat=new THREE.MeshBasicMaterial({color:0xffd980});
+      [[-1.4,1.9,2.02],[1.4,1.9,2.02]].forEach(p=>{
+        const w=new THREE.Mesh(new THREE.BoxGeometry(0.7,0.7,0.12),winMat); w.position.set(...p); g.add(w);
+      });
+      scene.add(g);
+      addSolid(x,z,3.0); addShadow(x,z,7);
+      return g;
+    }
+
+    // 村レイアウト
+    const roofs=[0xb5533a,0x3f7d78,0xa8823a,0x8a4a6a,0x556f9a];
+    const walls=[0xe8d3a8,0xdfc79a,0xead9b0];
+    const houses=[
+      [-11,-9, .5], [ 11,-8,-.5], [-13, 5,-.4],
+      [ 12, 6, .4], [ 0,-14, 0], [-4, 12, .2], [ 7, 13,-.2]
+    ];
+    houses.forEach((h,i)=>makeHouse(h[0],h[1],h[2],walls[i%walls.length],roofs[i%roofs.length]));
+
+    // 中央の泉
+    (function fountain(){
+      const g=new THREE.Group(); g.position.set(0,0,0);
+      const base=new THREE.Mesh(new THREE.CylinderGeometry(2.4,2.6,0.6,20),
+        new THREE.MeshLambertMaterial({color:0xbfc4cc})); base.position.y=0.3; g.add(base);
+      const water=new THREE.Mesh(new THREE.CylinderGeometry(2.0,2.0,0.2,20),
+        new THREE.MeshBasicMaterial({color:0x6fc7e6})); water.position.y=0.62; g.add(water);
+      const post=new THREE.Mesh(new THREE.CylinderGeometry(0.35,0.5,1.6,12),
+        new THREE.MeshLambertMaterial({color:0xbfc4cc})); post.position.y=1.3; g.add(post);
+      const top=new THREE.Mesh(new THREE.SphereGeometry(0.55,14,12),
+        new THREE.MeshBasicMaterial({color:0x9fe0f0})); top.position.y=2.1; g.add(top);
+      scene.add(g); addSolid(0,0,2.6); addShadow(0,0,6.5);
+      g.userData.water=water; g.userData.top=top; return g;
+      })();
+
+    // 木・茂み・花・岩でワールドを彩る
+    const treeTex=makeTree(), bushTex=makeBush(), rockTex=makeRock();
+    const flowerTex=[makeFlower("#e86a8a"),makeFlower("#e6c268"),makeFlower("#9a7fe0")];
+    const FIELD_R=25, WORLD=56, FOREST_R=54;   // 村(安全)半径 / 端 / 森の壁
+    function dist0(x,z){ return Math.hypot(x,z); }
+    function scatterTree(x,z,s){ const t=makeBillboard(treeTex,4.6*(s||1),6.1*(s||1)); t.position.set(x,0,z);
+      addSolid(x,z,1.0*(s||1)); addShadow(x,z,3.6*(s||1)); }
+    // 村を囲む森の壁（外周・密）
+    for(let a=0;a<Math.PI*2;a+=Math.PI/24){ const r=FOREST_R+Math.random()*3-1;
+      scatterTree(Math.cos(a)*r, Math.sin(a)*r, 1.1+Math.random()*0.3); }
+    // 村の縁を軽く縁取る木（囲い込みすぎない）
+    [[-19,3],[19,4],[-6,-20],[8,19],[-20,-14],[18,-15],[-16,17],[15,16]].forEach(p=>scatterTree(p[0],p[1]));
+    // フィールドに点在する木と岩（隠れられる程度）
+    for(let i=0;i<26;i++){ const a=Math.random()*7, r=FIELD_R+4+Math.random()*(FOREST_R-FIELD_R-8);
+      const x=Math.cos(a)*r, z=Math.sin(a)*r;
+      if(Math.random()<0.5) scatterTree(x,z);
+      else { const rk=makeBillboard(rockTex,1.9,1.8); rk.position.set(x,0,z); addSolid(x,z,0.8); addShadow(x,z,2.4); } }
+    // 村の中の茂み・花
+    for(let i=0;i<20;i++){ const a=Math.random()*7,r=6+Math.random()*16;
+      const x=Math.cos(a)*r,z=Math.sin(a)*r;
+      if(Math.abs(x)<4&&Math.abs(z)<4) continue;
+      const b=makeBillboard(bushTex,2.2,1.9); b.position.set(x,0,z); }
+    for(let i=0;i<44;i++){ const a=Math.random()*7,r=5+Math.random()*40;
+      const x=Math.cos(a)*r,z=Math.sin(a)*r;
+      const f=makeBillboard(flowerTex[i%3],0.9,1.0); f.position.set(x,0,z); }
+
+    // ============================================================
+    //  プレイヤー & NPC
+    // ============================================================
+    const heroTex=makePersonSheet({hair:"#5a3b1d", body:"#2f7d5a", body2:"#245f43", cape:"#c9a24b"});
+    const hero=makeBillboard(heroTex,1.7,2.27); hero.position.set(0,0,7);
+    hero.userData.anim=makeAnim(heroTex);
+    const heroShadow=new THREE.Mesh(new THREE.PlaneGeometry(1.5,1.5),shadowMat);
+    heroShadow.rotation.x=-Math.PI/2; heroShadow.position.set(0,0.03,7); scene.add(heroShadow);
+    const player={ x:0, z:7, r:0.45, facing:"down", speed:6.2, walkT:0 };
+
+    // NPC定義
+    const npcs=[];
+    function addNPC(opt){
+      const tex=makePersonSheet(opt.col);
+      const m=makeBillboard(tex,1.7,2.27); m.position.set(opt.x,0,opt.z);
+      m.userData.anim=makeAnim(tex);
+      const sh=new THREE.Mesh(new THREE.PlaneGeometry(1.4,1.4),shadowMat);
+      sh.rotation.x=-Math.PI/2; sh.position.set(opt.x,0.03,opt.z); scene.add(sh);
+      addSolid(opt.x,opt.z,0.6);
+      npcs.push({ mesh:m, x:opt.x, z:opt.z, name:opt.name, lines:opt.lines, r:1.9, t:Math.random()*7, shop:opt.shop||null });
+    }
+    addNPC({ x:2.6,z:5.2, name:"村長 オルヴァ", col:{hair:"#cfcfcf",body:"#7a5230",body2:"#5e3f24",cape:"#8a6a3a"},
+      lines:[
+        "よくぞ目を覚ました、光の器よ。",
+        "ここは はじまりの村ルミナ。世界の隅で ひっそりと灯りを守ってきた。",
+        "だが最近、村を囲む森の光が 一つ また一つと消えている……",
+        "君の胸に宿るその輝き――それこそ 我らが待っていた《光の継承者》の証だ。",
+        "まずは 村の皆と話し、力を借りるとよい。井戸のほとりに 妹弟子がいるはずだ。"
+      ]});
+    addNPC({ x:-3.4,z:2.6, name:"見習い リィナ", col:{hair:"#c98a3a",body:"#c94f6a",body2:"#9a3a52"},
+      lines:[
+        "あっ、起きたんだね！ ずっと眠ってたから心配したよ。",
+        "わたしはリィナ。魔法はまだ下手っぴだけど、案内ならまかせて。",
+        "北の家には道具屋のおじさん、東には門番のダグさんがいるよ。",
+        "森に行くなら…その前に みんなに挨拶していこう？"
+      ]});
+    addNPC({ x:10,z:-6.4, name:"門番 ダグ", col:{hair:"#3a3a3a",body:"#556f9a",body2:"#3d5378"},
+      lines:[
+        "村の外はいま物騒だ。魔物が増えてきてる。",
+        "……お前さんが噂の継承者か。なら 話は早い。",
+        "森の奥、消えた《灯火の祠》を巡ってほしい。地図はリィナが持ってる。",
+        "気をつけてな。無茶はするなよ、若いの。"
+      ]});
+    addNPC({ x:-11.5,z:-7.2, name:"道具屋 マーサ", col:{hair:"#b0603a",body:"#4a8f6a",body2:"#356b4e"},
+      lines:[
+        "いらっしゃい！ 薬草でも縄でも、旅の用意はここで揃うよ。",
+        "……とはいえ 今は開店準備中さ。次に来たときは 店を開けとくよ。",
+        "無事に帰っておいで。灯りは いつでも点けて待ってるからね。"
+      ]});
+
+    // --- 武器屋・防具屋（建物＋店主＋看板アイコン） ---
+    makeHouse(-8.5,-6.5, 0.15, 0xd9b48a, 0x9a4636);   // 武器屋
+    makeHouse( 8.5,-6.5,-0.15, 0xc9b8d0, 0x3f6f8a);   // 防具屋
+    const swordSign=makeBillboard(makeSwordIcon(),1.5,1.5); swordSign.position.set(-8.5,2.0,-3.0);
+    const shieldSign=makeBillboard(makeShieldIcon(),1.5,1.5); shieldSign.position.set(8.5,2.0,-3.0);
+    addNPC({ x:-8.5,z:-3.2, name:"武器屋 グラン", shop:"weapon",
+      col:{hair:"#4a2f1a",body:"#8a4636",body2:"#6a3428",belt:"#3a2418"} });
+    addNPC({ x:8.5,z:-3.2, name:"防具屋 ミラ", shop:"armor",
+      col:{hair:"#c9b06a",body:"#4f7a9a",body2:"#3a5c76"} });
+
+    // 看板（調べられる）
+    const signTex=makeSign();
+    const sign=makeBillboard(signTex,1.3,1.3); sign.position.set(4.6,0,7.6);
+    const examinables=[
+      { x:4.6,z:7.6, name:"立て札", r:1.7,
+        lines:["「ようこそ ルミナ村へ」","―― 村の外は魔物の領域。武具を整えて挑め ――","右ボタンでこうげき／青ボタンで回避だ。"] },
+      { x:0,z:-16, name:"北の道しるべ", r:1.9,
+        lines:["「↑ この先 灯火の森」","村の外（緑の草原）には魔物が出る。倒せば経験値と金貨を落とす。"] }
+    ];
+
+    // ============================================================
+    //  ステータス・装備・戦闘・モンスター・ショップ
+    // ============================================================
+    // --- 武器・防具データ ---
+    const WEAPONS=[
+      {name:"こんぼう",   atk:3,  range:1.9, arc:1.4, cd:0.42, price:0,    ic:"🪵", desc:"ありふれた棒。"},
+      {name:"銅の剣",     atk:7,  range:2.1, arc:1.3, cd:0.40, price:120,  ic:"🗡️", desc:"バランス型の片手剣。"},
+      {name:"双短剣",     atk:6,  range:1.7, arc:1.1, cd:0.24, price:640,  ic:"🔪", desc:"手数で押す二刀。とても速い。"},
+      {name:"鉄の剣",     atk:12, range:2.2, arc:1.3, cd:0.40, price:520,  ic:"⚔️", desc:"よく斬れる鉄の剣。"},
+      {name:"鋼の大剣",   atk:22, range:2.9, arc:2.0, cd:0.68, price:1200, ic:"🗡️", desc:"重い一撃・広範囲。振りは遅い。"},
+      {name:"炎の剣",     atk:32, range:2.4, arc:1.4, cd:0.38, price:2600, ic:"🔥", desc:"灯火を宿す剣。"}
+    ];
+    const ARMORS=[
+      {name:"旅の服",     def:1,  hp:0,  price:0,    ic:"👕", desc:"ただの服。"},
+      {name:"皮の鎧",     def:4,  hp:10, price:100,  ic:"🟫", desc:"軽くて動きやすい。"},
+      {name:"鎖かたびら", def:9,  hp:20, price:340,  ic:"⛓️", desc:"斬撃に強い。"},
+      {name:"鉄の鎧",     def:16, hp:34, price:820,  ic:"🛡️", desc:"重厚な守り。"},
+      {name:"竜鱗の鎧",   def:26, hp:64, price:2200, ic:"🐉", desc:"竜の鱗で編んだ鎧。"}
+    ];
+
+    // --- プレイヤー戦闘ステータス ---
+    Object.assign(player,{
+      level:1, exp:0, expNext:12, gold:60,
+      baseMaxHp:40, baseAtk:6, baseDef:2,
+      hp:40, maxHp:40, atk:0, def:0,
+      weapon:0, armor:0, ownedW:{0:true}, ownedA:{0:true},
+      iframes:0, dodgeCd:0, attackCd:0, dash:null, knock:null, dead:false
+    });
+    function deriveStats(){ const w=WEAPONS[player.weapon], a=ARMORS[player.armor];
+      player.maxHp=player.baseMaxHp+a.hp; player.atk=player.baseAtk+w.atk; player.def=player.baseDef+a.def;
+      if(player.hp>player.maxHp) player.hp=player.maxHp; }
+
+    // --- HUD ---
+    const s_lv=document.getElementById("s-lv"), s_gold=document.getElementById("s-gold"),
+          s_hp=document.getElementById("s-hp"), s_hptext=document.getElementById("s-hptext"),
+          s_xp=document.getElementById("s-xp"), s_gear=document.getElementById("s-gear"),
+          statsEl=document.getElementById("stats"), banner=document.getElementById("banner"),
+          dodgeBtn=document.getElementById("dodge");
+    function updateHUD(){
+      s_lv.textContent=player.level; s_gold.textContent=player.gold;
+      s_hp.style.width=Math.max(0,player.hp)/player.maxHp*100+"%";
+      s_hptext.textContent=Math.max(0,Math.ceil(player.hp))+"/"+player.maxHp;
+      s_xp.style.width=(player.exp/player.expNext*100)+"%";
+      s_gear.textContent="⚔ "+WEAPONS[player.weapon].name+" ／ 🛡 "+ARMORS[player.armor].name;
+    }
+    function addGold(n){ player.gold+=n; updateHUD(); }
+    function addExp(n){ player.exp+=n; while(player.exp>=player.expNext) levelUp(); updateHUD(); }
+    function levelUp(){ player.exp-=player.expNext; player.level++;
+      player.baseMaxHp+=8; player.baseAtk+=2; player.baseDef+=1; player.expNext=Math.round(player.expNext*1.4);
+      deriveStats(); player.hp=player.maxHp;
+      floatText(player.x,player.z,"LEVEL UP! Lv"+player.level,"#8fe6d6",true); showBanner("レベルアップ！","Lv "+player.level); }
+
+    // --- 演出：浮遊テキスト / ゾーンバナー / 被弾フラッシュ ---
+    function floatText(x,z,txt,color,big){ const s=worldToScreen(x,2.4,z); if(!s.vis) return;
+      const el=document.createElement("div"); el.className="float"+(big?" big":""); el.textContent=txt;
+      el.style.left=s.x+"px"; el.style.top=s.y+"px"; el.style.color=color||"#fff";
+      document.body.appendChild(el); setTimeout(()=>el.remove(),900); }
+    let bannerT=0;
+    function showBanner(a,b){ banner.querySelector(".b1").textContent=a; banner.querySelector(".b2").textContent=b||"";
+      banner.style.opacity="1"; bannerT=1.8; }
+    const hurtFx=document.createElement("div");
+    hurtFx.style.cssText="position:fixed;inset:0;z-index:16;pointer-events:none;opacity:0;transition:opacity .12s;background:radial-gradient(120% 90% at 50% 60%,transparent 42%,rgba(180,24,24,.5))";
+    document.body.appendChild(hurtFx);
+    function hurtFlash(){ hurtFx.style.opacity="1"; setTimeout(()=>hurtFx.style.opacity="0",120); }
+
+    // --- 斬撃エフェクト ---
+    const slashTex=pixTex((g)=>{
+      for(let a=-1.0;a<1.0;a+=0.05){ const r=13,x=16+Math.cos(a)*r,y=16+Math.sin(a)*r;
+        g.fillStyle="rgba(255,255,255,0.95)"; g.fillRect(x-1,y-1,3,3); }
+      for(let a=-0.8;a<0.8;a+=0.05){ const r=9,x=16+Math.cos(a)*r,y=16+Math.sin(a)*r;
+        g.fillStyle="rgba(190,235,255,0.85)"; g.fillRect(x,y,2,2); }
+    },32,32);
+    const slashes=[];
+    function spawnSlash(x,z){ const mat=new THREE.MeshBasicMaterial({map:slashTex, transparent:true, depthWrite:false, blending:THREE.AdditiveBlending});
+      const s=new THREE.Mesh(new THREE.PlaneGeometry(2.4,2.4),mat); s.position.set(x,1.3,z); scene.add(s);
+      billboards.push(s); slashes.push({mesh:s,life:0.16,max:0.16}); }
+    function updateSlashes(dt){ for(let i=slashes.length-1;i>=0;i--){ const s=slashes[i]; s.life-=dt;
+      const k=Math.max(0,s.life/s.max); s.mesh.material.opacity=k; s.mesh.scale.setScalar(1.5-k*0.6);
+      if(s.life<=0){ scene.remove(s.mesh); const bi=billboards.indexOf(s.mesh); if(bi>=0) billboards.splice(bi,1); slashes.splice(i,1);} } }
+
+    // --- モンスター定義 ---
+    const MON_TYPES=[
+      {name:"スライム",     tex:makeSlime(),  w:1.5,h:1.5, r:0.7, hp:16,  atk:5,  def:0, exp:6,  gold:4,  speed:1.8, aggro:7,  atkRange:1.3},
+      {name:"ゴブリン",     tex:makeGoblin(), w:1.7,h:2.0, r:0.7, hp:30,  atk:8,  def:2, exp:13, gold:9,  speed:2.7, aggro:9,  atkRange:1.5},
+      {name:"ダイアウルフ", tex:makeWolf(),   w:2.2,h:1.6, r:0.8, hp:26,  atk:11, def:1, exp:16, gold:8,  speed:3.8, aggro:12, atkRange:1.6},
+      {name:"オーガ",       tex:makeOgre(),   w:3.0,h:3.4, r:1.3, hp:120, atk:18, def:6, exp:70, gold:55, speed:1.5, aggro:9,  atkRange:2.1}
+    ];
+    const monsters=[];
+    function pickType(){ const r=Math.random(); return r<0.42?0 : r<0.72?1 : r<0.93?2 : 3; }
+    function spawnMonster(){
+      if(monsters.length>=8) return;
+      let x,z,tries=0;
+      do{ const a=Math.random()*7, rr=FIELD_R+4+Math.random()*(FOREST_R-FIELD_R-8);
+        x=Math.cos(a)*rr; z=Math.sin(a)*rr; tries++;
+      }while(tries<14 && (Math.hypot(x-player.x,z-player.z)<14 || dist0(x,z)<FIELD_R+2));
+      const T=MON_TYPES[pickType()];
+      const m=makeBillboard(T.tex,T.w,T.h); m.position.set(x,0,z);
+      const sh=new THREE.Mesh(new THREE.PlaneGeometry(T.r*2.4,T.r*2.4),shadowMat); sh.rotation.x=-Math.PI/2; sh.position.set(x,0.03,z); scene.add(sh);
+      const hpEl=document.createElement("div"); hpEl.className="monhp"; hpEl.innerHTML="<i></i>"; document.body.appendChild(hpEl);
+      monsters.push({T, mesh:m, sh, x, z, hp:T.hp, maxHp:T.hp, atkCd:Math.random(), vx:0, vz:0, ph:Math.random()*7, hurtT:0, hpEl, hpShowT:0, face:1});
+    }
+    function damageMonster(m,dmg,sx,sz){
+      m.hp-=dmg; m.hurtT=0.12; m.mesh.material.color.setRGB(1,0.5,0.5);
+      const d=Math.hypot(m.x-sx,m.z-sz)||1; m.vx+=(m.x-sx)/d*4.5; m.vz+=(m.z-sz)/d*4.5; m.hpShowT=2.2;
+      floatText(m.x,m.z,""+dmg,"#ffd8a8");
+      if(m.hp<=0) killMonster(m);
+    }
+    function killMonster(m){
+      addGold(m.T.gold); addExp(m.T.exp);
+      floatText(m.x,m.z,"+"+m.T.exp+"EXP  +"+m.T.gold+"G","#8fe6d6");
+      scene.remove(m.mesh); scene.remove(m.sh); m.hpEl.remove();
+      const bi=billboards.indexOf(m.mesh); if(bi>=0) billboards.splice(bi,1);
+      const mi=monsters.indexOf(m); if(mi>=0) monsters.splice(mi,1);
+    }
+    function updateMonsters(dt,t){
+      const pInVillage = dist0(player.x,player.z) < FIELD_R;
+      for(let i=monsters.length-1;i>=0;i--){ const m=monsters[i];
+        const dx=player.x-m.x, dz=player.z-m.z, d=Math.hypot(dx,dz)||0.0001;
+        m.x+=m.vx*dt; m.z+=m.vz*dt; m.vx*=0.85; m.vz*=0.85;   // ノックバック減衰
+        m.atkCd-=dt; let mvx=0;
+        if(!pInVillage && !player.dead && d<m.T.aggro){
+          if(d>m.T.atkRange){ const sp=m.T.speed*dt; m.x+=dx/d*sp; m.z+=dz/d*sp; mvx=dx; }
+          if(d<m.T.atkRange+0.3 && m.atkCd<=0){ m.atkCd=1.1; m.x+=dx/d*0.2; m.z+=dz/d*0.2; playerHurt(m.T.atk,m.x,m.z); }
+        } else { m.ph+=dt; m.x+=Math.cos(m.ph)*0.25*dt; m.z+=Math.sin(m.ph*0.7)*0.25*dt; }
+        const dc=dist0(m.x,m.z); if(dc<FIELD_R+1){ const k=(FIELD_R+1)/dc; m.x*=k; m.z*=k; }   // 村に入れない
+        m.x=Math.max(-WORLD,Math.min(WORLD,m.x)); m.z=Math.max(-WORLD,Math.min(WORLD,m.z));
+        if(m.hurtT>0){ m.hurtT-=dt; if(m.hurtT<=0) m.mesh.material.color.setRGB(1,1,1); }
+        if(Math.abs(mvx)>0.001) m.face = mvx<0?-1:1;
+        const bob=Math.abs(Math.sin(t*4+m.ph))*0.09;
+        m.mesh.position.set(m.x,bob,m.z); m.mesh.scale.x=m.face; m.sh.position.set(m.x,0.03,m.z);
+        if(m.hpShowT>0){ m.hpShowT-=dt; const s=worldToScreen(m.x,m.T.h+0.5,m.z);
+          if(s.vis && m.hpShowT>0){ m.hpEl.style.display="block"; m.hpEl.style.left=s.x+"px"; m.hpEl.style.top=s.y+"px";
+            m.hpEl.firstChild.style.width=Math.max(0,m.hp)/m.maxHp*100+"%"; } else m.hpEl.style.display="none"; }
+        else m.hpEl.style.display="none";
+      }
+    }
+
+    // --- プレイヤー：移動補助・攻撃・回避・被弾 ---
+    function movePlayer(dx,dz){
+      if(dx && !collides(player.x+dx,player.z,player.r)) player.x+=dx;
+      if(dz && !collides(player.x,player.z+dz,player.r)) player.z+=dz;
+      player.x=Math.max(-WORLD,Math.min(WORLD,player.x)); player.z=Math.max(-WORLD,Math.min(WORLD,player.z));
+    }
+    function faceVec(){ switch(player.facing){ case "up":return[0,-1]; case "down":return[0,1]; case "left":return[-1,0]; default:return[1,0]; } }
+    function doAttack(){
+      if(player.dead || player.attackCd>0) return;
+      const w=WEAPONS[player.weapon]; player.attackCd=w.cd;
+      const [fx,fz]=faceVec(); const fa=Math.atan2(fx,fz);
+      spawnSlash(player.x+fx*1.2, player.z+fz*1.2);
+      for(const m of monsters.slice()){
+        const dx=m.x-player.x, dz=m.z-player.z, d=Math.hypot(dx,dz);
+        if(d>w.range+m.T.r) continue;
+        let diff=Math.abs(Math.atan2(dx,dz)-fa); if(diff>Math.PI) diff=2*Math.PI-diff;
+        if(diff<=w.arc){ let dmg=Math.max(1,Math.round((player.atk-m.T.def)*(0.85+Math.random()*0.3)));
+          if(Math.random()<0.1) dmg=Math.round(dmg*1.6); damageMonster(m,dmg,player.x,player.z); }
+      }
+    }
+    function doDodge(){
+      if(player.dead || player.dodgeCd>0) return;
+      player.dodgeCd=0.9; player.iframes=0.42;
+      let [fx,fz]=faceVec();
+      const il=Math.hypot(input.x,input.y); if(il>0.2){ fx=input.x/il; fz=input.y/il; }
+      player.dash={t:0.18, vx:fx*15, vz:fz*15};
+    }
+    function playerHurt(dmg,sx,sz){
+      if(player.dead || player.iframes>0) return;
+      const real=Math.max(1,Math.round((dmg-player.def)*(0.85+Math.random()*0.3)));
+      player.hp-=real; player.iframes=0.5;
+      const d=Math.hypot(player.x-sx,player.z-sz)||1; player.knock={vx:(player.x-sx)/d*9, vz:(player.z-sz)/d*9, t:0.15};
+      floatText(player.x,player.z,"-"+real,"#ff7a6a"); hurtFlash(); updateHUD();
+      if(player.hp<=0) playerDie();
+    }
+    function playerDie(){
+      player.dead=true; player.hp=0; updateHUD(); showBanner("力尽きた…","村で目を覚ます");
+      setTimeout(()=>{ player.x=0; player.z=7; player.dead=false; player.hp=player.maxHp; player.iframes=1.5; player.dash=null; player.knock=null; updateHUD(); },1500);
+    }
+
+    // --- ショップUI ---
+    let shopOpen=false, shopType=null;
+    const shopEl=document.getElementById("shop"), shopNameEl=document.getElementById("shop-name"),
+          shopGoldEl=document.getElementById("shop-gold"), shopListEl=document.getElementById("shop-list");
+    function openShop(type,name){ shopOpen=true; shopType=type; shopEl.style.display="flex";
+      shopNameEl.textContent=name||(type==="weapon"?"武器屋":"防具屋"); buildShop(); }
+    function closeShop(){ shopOpen=false; shopEl.style.display="none"; }
+    document.getElementById("shop-close").addEventListener("click",closeShop);
+    function buildShop(){
+      shopGoldEl.textContent="🪙 "+player.gold;
+      const list=shopType==="weapon"?WEAPONS:ARMORS;
+      const owned=shopType==="weapon"?player.ownedW:player.ownedA;
+      const equipped=shopType==="weapon"?player.weapon:player.armor;
+      shopListEl.innerHTML="";
+      list.forEach((it,idx)=>{
+        const isOwned=!!owned[idx], isEq=(idx===equipped), canBuy=player.gold>=it.price;
+        const row=document.createElement("div");
+        row.className="item"+(isEq?" equipped":"")+((!isOwned&&!canBuy)?" locked":"");
+        const stat=shopType==="weapon"
+          ? "攻撃+"+it.atk+"・"+(it.cd<=0.3?"速い":it.cd>=0.6?"遅い/広範囲":"標準")
+          : "防御+"+it.def+"・HP+"+it.hp;
+        let pr;
+        if(isEq) pr='<span class="eq">装備中</span>';
+        else if(isOwned) pr='<span class="own">所持</span><span class="tag">タップで装備</span>';
+        else pr=it.price+" G<span class=\"tag\">"+(canBuy?"タップで購入":"金貨不足")+"</span>";
+        row.innerHTML='<div class="ic">'+it.ic+'</div><div class="nm">'+it.name+'<small>'+stat+'／'+it.desc+'</small></div><div class="pr">'+pr+'</div>';
+        row.addEventListener("click",()=>selectShopItem(idx));
+        shopListEl.appendChild(row);
+      });
+    }
+    function selectShopItem(idx){
+      const list=shopType==="weapon"?WEAPONS:ARMORS;
+      const owned=shopType==="weapon"?player.ownedW:player.ownedA;
+      const it=list[idx];
+      if(!owned[idx]){ if(player.gold<it.price) return; player.gold-=it.price; owned[idx]=true; }
+      if(shopType==="weapon") player.weapon=idx; else player.armor=idx;
+      deriveStats(); updateHUD(); buildShop();
+    }
+
+    // 初期化：ステータス確定＆フィールドに初期モンスター
+    let spawnT=2.2, inField=false;
+    deriveStats();
+    for(let i=0;i<5;i++) spawnMonster();
+
+    // ============================================================
+    //  会話システム
+    // ============================================================
+    const dialog=document.getElementById("dialog");
+    const dName=document.getElementById("d-name"), dText=document.getElementById("d-text");
+    let convo=null, convoIdx=0, typing=null, shownFull="";
+    function openConvo(name, lines){
+      convo=lines; convoIdx=0; dName.textContent=name; dialog.style.display="block";
+      document.getElementById("quest").style.opacity="0";
+      showLine();
+    }
+    function showLine(){
+      const full=convo[convoIdx]; shownFull=full; let i=0;
+      dText.textContent=""; document.getElementById("d-next").style.opacity="0";
+      clearInterval(typing);
+      typing=setInterval(()=>{ dText.textContent=full.slice(0,++i);
+        if(i>=full.length){ clearInterval(typing); document.getElementById("d-next").style.opacity="1"; } }, 26);
+    }
+    function advanceConvo(){
+      if(!convo) return;
+      if(dText.textContent.length<shownFull.length){ clearInterval(typing); dText.textContent=shownFull;
+        document.getElementById("d-next").style.opacity="1"; return; }
+      convoIdx++;
+      if(convoIdx>=convo.length){ closeConvo(); return; }
+      showLine();
+    }
+    function closeConvo(){ convo=null; dialog.style.display="none"; clearInterval(typing);
+      setQuest("森の入口（東の門）を目指そう"); }
+    dialog.addEventListener("pointerdown",(e)=>{ e.preventDefault(); advanceConvo(); });
+
+    const questBar=document.getElementById("quest"), questText=document.getElementById("quest-text");
+    function setQuest(t){ questText.textContent=t; questBar.style.opacity="1"; }
+
+    // ============================================================
+    //  入力（バーチャルスティック＋キーボード）
+    // ============================================================
+    const input={x:0,y:0};
+    const keys={};
+    addEventListener("keydown",e=>{ keys[e.key.toLowerCase()]=true;
+      if(e.key===" "||e.key==="Enter"||e.key==="j"){ e.preventDefault(); tryAct(); }
+      if(e.key==="Shift"||e.key==="k"){ e.preventDefault(); doDodge(); } });
+    addEventListener("keyup",e=>{ keys[e.key.toLowerCase()]=false; });
+
+    // スティック
+    const stick=document.getElementById("stick"), knob=document.getElementById("knob");
+    let stickId=null, sc={x:0,y:0};
+    function stickStart(e){ const t=e.changedTouches?e.changedTouches[0]:e; stickId=(e.changedTouches?t.identifier:"m");
+      const r=stick.getBoundingClientRect(); sc.x=r.left+r.width/2; sc.y=r.top+r.height/2; stickMove(e); }
+    function stickMove(e){ if(stickId===null) return;
+      let t=null;
+      if(e.changedTouches){ for(const tt of e.changedTouches){ if(tt.identifier===stickId){ t=tt; break; } } if(!t) return; }
+      else t=e;
+      let dx=t.clientX-sc.x, dy=t.clientY-sc.y; const max=48; const d=Math.hypot(dx,dy);
+      if(d>max){ dx*=max/d; dy*=max/d; }
+      knob.style.transform=`translate(${dx}px,${dy}px)`;
+      input.x=dx/max; input.y=dy/max;
+    }
+    function stickEnd(e){ if(e.changedTouches){ let hit=false; for(const tt of e.changedTouches){ if(tt.identifier===stickId) hit=true; } if(!hit) return; }
+      stickId=null; input.x=0; input.y=0; knob.style.transform="translate(0,0)"; }
+    stick.addEventListener("touchstart",e=>{e.preventDefault();stickStart(e);},{passive:false});
+    stick.addEventListener("touchmove",e=>{e.preventDefault();stickMove(e);},{passive:false});
+    stick.addEventListener("touchend",e=>{e.preventDefault();stickEnd(e);},{passive:false});
+    stick.addEventListener("touchcancel",e=>{e.preventDefault();stickEnd(e);},{passive:false});
+    stick.addEventListener("mousedown",stickStart);
+    addEventListener("mousemove",e=>{ if(stickId==="m") stickMove(e); });
+    addEventListener("mouseup",e=>{ if(stickId==="m"){ stickId=null; input.x=input.y=0; knob.style.transform="translate(0,0)"; } });
+
+    // アクションボタン
+    const actBtn=document.getElementById("act");
+    let nearTarget=null;
+    function tryAct(){
+      if(convo){ advanceConvo(); return; }
+      if(shopOpen) return;
+      if(nearTarget){ if(nearTarget.shop) openShop(nearTarget.shop, nearTarget.name);
+                      else openConvo(nearTarget.name, nearTarget.lines); return; }
+      doAttack();
+    }
+    actBtn.addEventListener("pointerdown",e=>{ e.preventDefault(); tryAct(); });
+    dodgeBtn.addEventListener("pointerdown",e=>{ e.preventDefault(); doDodge(); });
+
+    // ============================================================
+    //  当たり判定 & 更新
+    // ============================================================
+    function collides(x,z,r){ for(const s of solids){ const dx=x-s.x,dz=z-s.z;
+      if(dx*dx+dz*dz < (r+s.r)*(r+s.r)) return true; } return false; }
+
+    const promptEl=document.getElementById("prompt");
+    const tmp=new THREE.Vector3();
+    function worldToScreen(x,y,z){ tmp.set(x,y,z).project(camera);
+      return { x:(tmp.x*0.5+0.5)*innerWidth, y:(-tmp.y*0.5+0.5)*innerHeight, vis:tmp.z<1 }; }
+
+    let last=performance.now();
+    function loop(now){
+      const dt=Math.min(0.05,(now-last)/1000); last=now;
+      const t=now/1000;
+
+      // 移動入力（キーボード合成）
+      let ix=input.x, iy=input.y;
+      if(keys["arrowleft"]||keys["a"]) ix=-1; if(keys["arrowright"]||keys["d"]) ix=1;
+      if(keys["arrowup"]||keys["w"]) iy=-1; if(keys["arrowdown"]||keys["s"]) iy=1;
+      const len=Math.hypot(ix,iy); if(len>1){ ix/=len; iy/=len; }
+      const moving=(len>0.12) && !convo;
+
+      // 各種クールダウン
+      player.attackCd=Math.max(0,player.attackCd-dt);
+      player.dodgeCd=Math.max(0,player.dodgeCd-dt);
+      player.iframes=Math.max(0,player.iframes-dt);
+
+      const canMove = !convo && !shopOpen && !player.dead;
+      const walking = canMove && moving;
+      if(walking){
+        const sp=player.speed*dt;
+        movePlayer(ix*sp, iy*sp);
+        // 進行方向（優勢な軸で4方向を決定）
+        if(Math.abs(iy)>=Math.abs(ix)) player.facing=iy>0?"down":"up";
+        else player.facing=ix>0?"right":"left";
+        player.walkT+=dt*10;
+      } else { player.walkT=0; }
+      // 回避ダッシュ
+      if(player.dash){ player.dash.t-=dt; movePlayer(player.dash.vx*dt, player.dash.vz*dt); if(player.dash.t<=0) player.dash=null; }
+      // 被弾ノックバック
+      if(player.knock){ player.knock.t-=dt; movePlayer(player.knock.vx*dt, player.knock.vz*dt);
+        player.knock.vx*=0.8; player.knock.vz*=0.8; if(player.knock.t<=0) player.knock=null; }
+
+      // 主人公：向き＆歩行フレーム更新（回避中は点滅で無敵表現）
+      stepAnim(hero.userData.anim, player.facing, walking||!!player.dash, dt);
+      hero.material.opacity = player.iframes>0 ? (Math.sin(t*40)>0?0.4:0.9) : 1.0;
+      hero.material.transparent = true;
+      const bob=moving?Math.abs(Math.sin(player.walkT))*0.08:Math.sin(t*2)*0.02;
+      hero.position.set(player.x, bob, player.z);
+      heroShadow.position.set(player.x,0.03,player.z);
+      heroShadow.scale.setScalar(moving?1+Math.sin(player.walkT)*0.06:1);
+
+      // NPC：近づくとプレイヤーの方を向く／軽い呼吸アニメ
+      npcs.forEach(n=>{
+        const dx=player.x-n.x, dz=player.z-n.z;
+        let dir="down";
+        if(dx*dx+dz*dz<20){ dir = Math.abs(dz)>=Math.abs(dx) ? (dz>0?"down":"up") : (dx>0?"right":"left"); }
+        setCell(n.mesh.userData.anim, dir, 1);
+        n.mesh.position.y=Math.sin(t*1.6+n.t)*0.03;
+      });
+
+      // カメラ追従
+      camera.position.set(player.x+CAM_OFF.x, CAM_OFF.y, player.z+CAM_OFF.z);
+      camera.lookAt(player.x, 1.2, player.z-1.0);
+
+      // ビルボードをカメラへ向ける
+      const cp=camera.position;
+      for(const b of billboards){ b.rotation.y=Math.atan2(cp.x-b.position.x, cp.z-b.position.z); }
+
+      // 戦闘・フィールド更新
+      updateMonsters(dt,t);
+      updateSlashes(dt);
+      spawnT-=dt; if(spawnT<=0){ spawnT=2.4; if(dist0(player.x,player.z)>FIELD_R-2) spawnMonster(); }
+      // 村での自然回復
+      if(dist0(player.x,player.z)<FIELD_R && !player.dead && player.hp<player.maxHp){
+        player.hp=Math.min(player.maxHp, player.hp+9*dt); updateHUD(); }
+      // ゾーン表示切替
+      const nowField = dist0(player.x,player.z)>FIELD_R;
+      if(nowField!==inField){ inField=nowField;
+        if(inField) showBanner("ルミナ郊外","FIELD ・ 魔物出現"); else showBanner("ルミナ村","SAFE ZONE"); }
+      if(bannerT>0){ bannerT-=dt; if(bannerT<=0) banner.style.opacity="0"; }
+
+      // 近接インタラクト＆アクションボタンの文脈
+      nearTarget=null; let best=1e9;
+      const all=npcs.concat(examinables.map(e=>({x:e.x,z:e.z,r:e.r,name:e.name,lines:e.lines,shop:null})));
+      for(const o of all){ const dx=player.x-o.x,dz=player.z-o.z; const d=dx*dx+dz*dz;
+        if(d<o.r*o.r && d<best){ best=d; nearTarget=o; } }
+      if(convo){ actBtn.textContent="つぎへ"; actBtn.classList.remove("combat"); promptEl.style.display="none"; }
+      else if(shopOpen){ promptEl.style.display="none"; }
+      else if(nearTarget){
+        actBtn.classList.add("show"); actBtn.classList.remove("combat");
+        actBtn.textContent = nearTarget.shop ? "みせ" : (examinables.some(e=>e.name===nearTarget.name)?"しらべる":"はなす");
+        const s=worldToScreen(nearTarget.x,2.6,nearTarget.z);
+        if(s.vis){ promptEl.style.display="block"; promptEl.style.left=s.x+"px"; promptEl.style.top=s.y+"px"; promptEl.textContent="！"; }
+      } else {
+        actBtn.classList.add("show","combat"); actBtn.textContent="こうげき"; promptEl.style.display="none";
+      }
+      // 回避ボタン（フィールドでのみ）
+      dodgeBtn.style.display = (inField && !convo && !shopOpen && !player.dead) ? "flex" : "none";
+      dodgeBtn.classList.toggle("cool", player.dodgeCd>0);
+
+      renderer.render(scene,camera);
+      requestAnimationFrame(loop);
+    }
+
+    // 光のモテ（蛍のような浮遊粒子）
+    (function motes(){
+      const N=70, g=new THREE.BufferGeometry(), pos=new Float32Array(N*3), spd=[];
+      for(let i=0;i<N;i++){ const a=Math.random()*7,r=Math.random()*28;
+        pos[i*3]=Math.cos(a)*r; pos[i*3+1]=0.6+Math.random()*3; pos[i*3+2]=Math.sin(a)*r;
+        spd.push({o:Math.random()*7,s:0.3+Math.random()*0.5}); }
+      g.setAttribute("position",new THREE.BufferAttribute(pos,3));
+      const c=document.createElement("canvas"); c.width=c.height=32; const gg=c.getContext("2d");
+      const gr=gg.createRadialGradient(16,16,0,16,16,16); gr.addColorStop(0,"#fff7d6"); gr.addColorStop(.4,"#ffe59a"); gr.addColorStop(1,"rgba(255,220,140,0)");
+      gg.fillStyle=gr; gg.fillRect(0,0,32,32);
+      const mat=new THREE.PointsMaterial({ size:0.5, map:new THREE.CanvasTexture(c), transparent:true,
+        blending:THREE.AdditiveBlending, depthWrite:false });
+      const pts=new THREE.Points(g,mat); scene.add(pts);
+      (function anim(){ const p=g.attributes.position.array; const t=performance.now()/1000;
+        for(let i=0;i<N;i++){ p[i*3+1]=0.6+1.6+Math.sin(t*spd[i].s+spd[i].o)*1.2;
+          p[i*3]+=Math.sin(t*0.3+spd[i].o)*0.004; }
+        g.attributes.position.needsUpdate=true; requestAnimationFrame(anim); })();
+    })();
+
+    addEventListener("resize",()=>{ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
+      renderer.setSize(innerWidth,innerHeight); });
+
+    // ============================================================
+    //  開始
+    // ============================================================
+    document.getElementById("start").addEventListener("click",()=>{
+      const t=document.getElementById("title"); t.style.opacity="0";
+      setTimeout(()=>{ t.style.display="none"; },800);
+      setQuest("村の人と はなしてみよう（右のボタン）");
+      const hc=document.getElementById("hint-controls"); hc.style.opacity="1";
+      setTimeout(()=>{ hc.style.opacity="0"; },5200);
+      requestAnimationFrame(loop);
+    });
+    // 背景を先にレンダリングしておく
+    renderer.render(scene,camera);
+  })();
+  </script>
+</body>
+</html>
