@@ -195,6 +195,43 @@
     font-family:"Hiragino Mincho ProN",serif; color:var(--ink); letter-spacing:.14em; font-size:15px;
     background:linear-gradient(180deg,#f0dfae,#d3ad4d); box-shadow:0 4px 12px rgba(0,0,0,.4); }
 
+  /* ---- 選択肢モーダル（村の物語の分岐） ---- */
+  #choice{ position:fixed; inset:0; z-index:45; display:none; align-items:center; justify-content:center;
+    background:rgba(6,4,12,.72); backdrop-filter:blur(2px); -webkit-backdrop-filter:blur(2px); }
+  #choice .panel{ width:min(92vw,420px); padding:22px 20px; text-align:center;
+    background:linear-gradient(180deg, rgba(32,20,42,.98), rgba(16,10,24,.99));
+    border:1px solid var(--gold-dim); border-radius:16px; box-shadow:0 16px 50px rgba(0,0,0,.6); }
+  #choice-title{ font-family:"Hiragino Mincho ProN",serif; color:var(--parch); font-size:19px; letter-spacing:.1em; }
+  #choice-text{ color:#d8cdb8; font-size:13px; line-height:1.7; margin:12px 0 18px; }
+  #choice-options{ display:flex; flex-direction:column; gap:10px; }
+  .choice-btn{ padding:13px; border:1px solid var(--gold-dim); border-radius:11px; cursor:pointer;
+    background:rgba(255,255,255,.04); color:var(--parch); font-size:14px; letter-spacing:.04em;
+    font-family:inherit; transition:background .12s, border-color .12s; }
+  .choice-btn:active{ background:rgba(230,194,104,.14); border-color:var(--light); }
+
+  /* ---- 転職モーダル ---- */
+  #jobselect{ position:fixed; inset:0; z-index:45; display:none; align-items:center; justify-content:center;
+    background:rgba(8,6,16,.62); backdrop-filter:blur(2px); -webkit-backdrop-filter:blur(2px); }
+  #jobselect .panel{ width:min(94vw,460px); max-height:82vh; display:flex; flex-direction:column;
+    background:linear-gradient(180deg, rgba(30,22,46,.98), rgba(18,13,30,.99));
+    border:1px solid var(--gold-dim); border-radius:16px; box-shadow:0 16px 50px rgba(0,0,0,.6); overflow:hidden; }
+  #jobselect .head{ padding:14px 18px; border-bottom:1px solid rgba(230,194,104,.22);
+    font-family:"Hiragino Mincho ProN",serif; color:var(--parch); font-size:18px; letter-spacing:.1em; }
+  #job-list{ overflow-y:auto; padding:10px 12px; -webkit-overflow-scrolling:touch; }
+  #jobselect .item{ display:flex; align-items:center; gap:10px; padding:11px 12px; margin-bottom:8px;
+    background:rgba(255,255,255,.03); border:1px solid rgba(230,194,104,.18); border-radius:11px; cursor:pointer;
+    transition:background .12s, border-color .12s; }
+  #jobselect .item:active{ background:rgba(230,194,104,.12); }
+  #jobselect .item.equipped{ border-color:var(--light); box-shadow:inset 0 0 0 1px rgba(127,230,214,.35); }
+  #jobselect .item .ic{ font-size:22px; width:26px; text-align:center; }
+  #jobselect .item .nm{ flex:1; color:var(--parch); }
+  #jobselect .item .nm small{ display:block; color:#bcae90; font-size:11px; margin-top:2px; }
+  #jobselect .item .pr{ font-size:12px; color:var(--gold); text-align:right; min-width:56px; }
+  #jobselect .item .pr .eq{ color:#fff; }
+  #jobselect-close{ margin:10px 14px 16px; padding:12px; border:none; border-radius:10px; cursor:pointer;
+    font-family:"Hiragino Mincho ProN",serif; color:var(--ink); letter-spacing:.14em; font-size:15px;
+    background:linear-gradient(180deg,#f0dfae,#d3ad4d); box-shadow:0 4px 12px rgba(0,0,0,.4); }
+
   /* ---- メニューボタン ---- */
   #menuBtn{ position:fixed; top:calc(env(safe-area-inset-top,0) + 12px); right:calc(env(safe-area-inset-right,0) + 12px);
     z-index:13; width:42px; height:42px; border-radius:11px; pointer-events:auto; cursor:pointer;
@@ -304,6 +341,21 @@
     <div class="name" id="d-name">？？？</div>
     <div class="text" id="d-text"></div>
     <div class="next" id="d-next">▼ タップ</div>
+  </div></div>
+
+  <div id="choice"><div class="panel">
+    <div id="choice-title">選択</div>
+    <div id="choice-text"></div>
+    <div id="choice-options">
+      <button class="choice-btn" id="choice-a"></button>
+      <button class="choice-btn" id="choice-b"></button>
+    </div>
+  </div></div>
+
+  <div id="jobselect"><div class="panel">
+    <div class="head">生き方を選ぶ</div>
+    <div id="job-list"></div>
+    <button id="jobselect-close">とじる</button>
   </div></div>
 
   <div id="shop"><div class="panel">
@@ -869,7 +921,7 @@
       scene.add(g);
       addSolid(x,z,3.0); addShadow(x,z,7);
       buildings.push(Object.assign({ x,z,rot, doorX:x+Math.sin(rot)*3.4, doorZ:z+Math.cos(rot)*3.4,
-        r:1.5, label:"民家", type:"plain", interior:null }, opt||{}));
+        r:1.5, label:"民家", type:"plain", interior:null, villageIdx:0 }, opt||{}));
       return g;
     }
 
@@ -948,7 +1000,9 @@
     const treeTex=makeTree(), bushTex=makeBush(), rockTex=makeRock();
     const flowerTex=[makeFlower("#e86a8a"),makeFlower("#e6c268"),makeFlower("#9a7fe0")];
     const FIELD_R=25, WORLD=56, FOREST_R=54;   // 村(安全)半径 / 端 / 森の壁
-    function dist0(x,z){ return Math.hypot(x,z); }
+    // 現在いる村の中心。距離・境界・湧き・ミニマップは全てこの中心からの相対座標で計算する
+    let VILLAGE_ORIGIN={x:0,z:0};
+    function dist0(x,z){ return Math.hypot(x-VILLAGE_ORIGIN.x, z-VILLAGE_ORIGIN.z); }
     function scatterTree(x,z,s,rOverride){ const t=makeBillboard(treeTex,4.6*(s||1),6.1*(s||1)); t.position.set(x,0,z);
       addSolid(x,z,rOverride!=null?rOverride:1.0*(s||1)); addShadow(x,z,3.6*(s||1)); }
     // 崖（岩の壁）：見える形でフィールドの外を塞ぐ
@@ -1035,6 +1089,108 @@
         makeMountain(Math.cos(a2)*r2,Math.sin(a2)*r2,h*0.7,rad*0.8,MOUNTAIN_COLORS[(Math.random()*3)|0]); }
     }
 
+    // ============================================================
+    //  村の登録・街道（村から村へ旅する仕組み）
+    // ============================================================
+    const ARNICA_ORIGIN={x:2200,z:0};
+    let currentVillageIdx=0;
+    let roadTransitionCooldown=0.8;
+    let choiceOpen=false;
+    let jobSelectOpen=false;
+    let arnicaSpringWaterMat=null, arnicaSpringTopMat=null;
+    const VILLAGES=[
+      { idx:0, id:"lumina", name:"ルミナ村", fieldName:"ルミナ郊外", origin:{x:0,z:0}, spawn:{x:40,z:0},
+        unlocked:()=>true,
+        roadFrom:{ villageIdx:1, x:ARNICA_ORIGIN.x-48, z:ARNICA_ORIGIN.z, r:2.2 } },
+      { idx:1, id:"arnica", name:"水霧の村 アルニカ", fieldName:"アルニカ郊外", origin:ARNICA_ORIGIN,
+        spawn:{x:ARNICA_ORIGIN.x-40, z:ARNICA_ORIGIN.z}, corruptedMonsters:true,
+        unlocked:()=>dungeonBossDefeated, lockedHint:"灯火の地下遺跡を突破してからだ…",
+        roadFrom:{ villageIdx:0, x:48, z:0, r:2.2 },
+        onArrive:()=>{
+          const q=player.quests.v2_arrive;
+          if(q && q.status!=="done"){
+            q.status="active"; progressQuest("v2_arrive",1);
+            if(player.quests.v2_greet.status==="locked") player.quests.v2_greet.status="active";
+          }
+        } }
+    ];
+    function travelToVillage(idx){
+      const v=VILLAGES[idx];
+      currentVillageIdx=idx; VILLAGE_ORIGIN=v.origin;
+      indoorHouse=null; dungeonFloor=0; hideTorches();
+      player.x=v.spawn.x; player.z=v.spawn.z; player.facing="down";
+      setZoneVisuals("outdoor"); inField=false; roadTransitionCooldown=1.2;
+      showBanner(v.name,"SAFE ZONE");
+      if(v.onArrive) v.onArrive();
+      updateHUD(); saveGame(false);
+    }
+    function tryTravel(idx){
+      const v=VILLAGES[idx];
+      if(v.unlocked && !v.unlocked()){ showBanner("まだ先には進めない",v.lockedHint||""); return; }
+      travelToVillage(idx);
+    }
+    // 村と村を繋ぐ街道の目印（鳥居風の柱＋立て札）。でっぱらせて視認しやすくする
+    function makeRoadGate(x,z){
+      const g=new THREE.Group(); g.position.set(x,0,z);
+      const stoneMat=new THREE.MeshLambertMaterial({color:0x8a8078});
+      [[0,-1.9],[0,1.9]].forEach(p=>{ const pil=new THREE.Mesh(new THREE.CylinderGeometry(0.32,0.4,2.6,8),stoneMat);
+        pil.position.set(p[0],1.3,p[1]); g.add(pil); });
+      const beam=new THREE.Mesh(new THREE.BoxGeometry(0.32,0.32,4.2), new THREE.MeshLambertMaterial({color:0x6b4a2c}));
+      beam.position.set(0,2.55,0); g.add(beam);
+      scene.add(g);
+      makeBillboard(makeSign(),1.3,1.3).position.set(x-1.0,0,z);
+      addSolid(x,z-1.9,0.35); addSolid(x,z+1.9,0.35); addShadow(x,z,3.2);
+    }
+    VILLAGES.forEach(v=>{ if(v.roadFrom) makeRoadGate(v.roadFrom.x, v.roadFrom.z); });
+
+    // --- アルニカ：水と霧の村（村2つ目。灯火の地下遺跡を突破すると旅立てる） ---
+    (function buildArnica(){
+      const ox=ARNICA_ORIGIN.x, oz=ARNICA_ORIGIN.z;
+      // 外周（森・崖・川のリング）と柵はルミナと同じ半径構成を流用し、中心だけずらす
+      for(let a=0;a<Math.PI*2;a+=Math.PI/40){
+        const r=FOREST_R+Math.random()*2-1, x=ox+Math.cos(a)*r, z=oz+Math.sin(a)*r, kind=terrainKind(a);
+        if(kind==="tree") scatterTree(x,z,1.1+Math.random()*0.3,2.4);
+        else if(kind==="cliff") scatterCliff(x,z);
+        else scatterRiver(x,z);
+      }
+      for(let a=0;a<Math.PI*2;a+=Math.PI/44){
+        if(nearFenceGate(a)) continue;
+        const x=ox+Math.cos(a)*FENCE_R, z=oz+Math.sin(a)*FENCE_R;
+        const f=makeBillboard(fenceTex,2.4,2.0); f.position.set(x,0,z);
+        addSolid(x,z,1.0);
+      }
+      for(let i=0;i<24;i++){ const a=Math.random()*7, r=FIELD_R+4+Math.random()*(FOREST_R-FIELD_R-8);
+        const x=ox+Math.cos(a)*r, z=oz+Math.sin(a)*r;
+        if(Math.random()<0.5) scatterTree(x,z);
+        else { const rk=makeBillboard(rockTex,1.9,1.8); rk.position.set(x,0,z); addSolid(x,z,0.8); addShadow(x,z,2.4); } }
+      for(let i=0;i<18;i++){ const a=Math.random()*7,r=6+Math.random()*16;
+        const x=ox+Math.cos(a)*r,z=oz+Math.sin(a)*r;
+        if(Math.abs(x-ox)<4&&Math.abs(z-oz)<4) continue;
+        const b=makeBillboard(bushTex,2.2,1.9); b.position.set(x,0,z); }
+      for(let i=0;i<36;i++){ const a=Math.random()*7,r=5+Math.random()*40;
+        const x=ox+Math.cos(a)*r,z=oz+Math.sin(a)*r;
+        const f=makeBillboard(flowerTex[i%3],0.9,1.0); f.position.set(x,0,z); }
+      for(let a=0;a<Math.PI*2;a+=Math.PI/10){
+        const r=68+Math.random()*18, h=16+Math.random()*14, rad=9+Math.random()*6;
+        makeMountain(ox+Math.cos(a)*r,oz+Math.sin(a)*r,h,rad,MOUNTAIN_COLORS[(Math.random()*3)|0]);
+      }
+      // 中央の「静心の泉」：村の物語（浄化／簒奪）に応じて水の色が変わる
+      const g=new THREE.Group(); g.position.set(ox,0,oz);
+      const base=new THREE.Mesh(new THREE.CylinderGeometry(2.4,2.6,0.6,20), new THREE.MeshLambertMaterial({color:0xbfc4cc}));
+      base.position.y=0.3; g.add(base);
+      arnicaSpringWaterMat=new THREE.MeshBasicMaterial({color:0x4a5a52});
+      const water=new THREE.Mesh(new THREE.CylinderGeometry(2.0,2.0,0.2,20), arnicaSpringWaterMat); water.position.y=0.62; g.add(water);
+      const post=new THREE.Mesh(new THREE.CylinderGeometry(0.35,0.5,1.6,12), new THREE.MeshLambertMaterial({color:0xbfc4cc})); post.position.y=1.3; g.add(post);
+      arnicaSpringTopMat=new THREE.MeshBasicMaterial({color:0x5a6a5f});
+      const top=new THREE.Mesh(new THREE.SphereGeometry(0.55,14,12), arnicaSpringTopMat); top.position.y=2.1; g.add(top);
+      scene.add(g); addSolid(ox,oz,2.6); addShadow(ox,oz,6.5);
+      // 民家（雰囲気づくり。中は空でも入れる）
+      const aWalls=[0xcdd8dd,0xd9e2e2], aRoofs=[0x3f6f8a,0x4a5a72];
+      [[-13,8,.4],[11,9,-.3],[3,-14,.2]].forEach((h,i)=>{
+        makeHouse(ox+h[0],oz+h[1],h[2],aWalls[i%aWalls.length],aRoofs[i%aRoofs.length],{villageIdx:1});
+      });
+    })();
+
     // --- 装備の見た目（武器：手元の形状／防具：胴体の配色）武器・防具データ配列とインデックスを揃える ---
     const WEAPON_VISUAL=[
       {kind:"club",      col:"#6b4a2c", hi:"#8a6a3a", hilt:"#4a3320", len:9,  width:3, dual:false},
@@ -1072,7 +1228,8 @@
       const sh=new THREE.Mesh(new THREE.PlaneGeometry(1.4,1.4),shadowMat);
       sh.rotation.x=-Math.PI/2; sh.position.set(opt.x,0.03,opt.z); scene.add(sh);
       addSolid(opt.x,opt.z,0.6);
-      npcs.push({ mesh:m, x:opt.x, z:opt.z, name:opt.name, lines:opt.lines, r:1.9, t:Math.random()*7, shop:opt.shop||null });
+      npcs.push({ mesh:m, x:opt.x, z:opt.z, name:opt.name, lines:opt.lines, r:1.9, t:Math.random()*7, shop:opt.shop||null,
+        jobmaster:opt.jobmaster||false, linesGood:opt.linesGood, linesBad:opt.linesBad, linesTrial:opt.linesTrial });
     }
     addNPC({ x:2.6,z:5.2, name:"村長 オルヴァ", col:{hair:"#cfcfcf",body:"#7a5230",body2:"#5e3f24",cape:"#8a6a3a"},
       lines:[
@@ -1144,6 +1301,39 @@
         lines:["「↑ この先 灯火の森」","村の外（緑の草原）には魔物が出る。倒せば経験値と金貨を落とす。"] }
     ];
 
+    // --- アルニカのNPC（addNPCの定義後にまとめて配置） ---
+    const AX=ARNICA_ORIGIN.x, AZ=ARNICA_ORIGIN.z;
+    addNPC({ x:AX+3,z:AZ+6, name:"漁師頭 リオン", col:{hair:"#4a3a2a",body:"#3a5f6a",body2:"#284448"},
+      lines:[
+        "おお…見ない顔だな。まさか、隣の村から来たのか？",
+        "この村は泉の恵みで生きてきた。だが最近、泉が濁り始めてな。魚も獲れなくなった。",
+        "おまけに、泉の周りに妙な魔物まで湧くようになった。力を貸してくれるとありがたい。",
+        "泉のことは巫女のミントが詳しい。話を聞いてやってくれ。"
+      ],
+      linesGood:[ "泉はすっかり元通りだ。あんたのおかげだよ、継承者さん。", "魚もまた獲れるようになった。今夜は宴だ、ゆっくりしていってくれ。" ],
+      linesBad:[ "……泉の色が変わっちまったな。悪い意味で。", "あんたが力を引き受けたって聞いたよ。村のことは、まあ……なんとかやっていくさ。" ] });
+    addNPC({ x:AX-4,z:AZ+5, name:"巫女 ミント", col:{hair:"#e8e4f0",body:"#8a6fb0",body2:"#5f4a80"},
+      lines:[
+        "ようこそ、アルニカへ。わたしはミント、泉を守る巫女です。",
+        "泉の奥には小さな水霊が棲んでいて、村に恵みを与えてくれていました。",
+        "でも、その水霊が弱っているのか、泉が濁ってしまって……",
+        "まずは、泉の周りに湧く「淀みの魔物」を減らしてもらえますか？水霊も少しは楽になるはずです。"
+      ],
+      linesTrial:[
+        "淀みの魔物が減って、水霊の気配が少し戻ってきました……",
+        "あなたになら、託せる気がします。",
+        "水霊の力を清めて村に還すか――それとも、その力をあなたが引き受けるか。決めてもらえますか？"
+      ],
+      linesGood:[ "泉は、もとの静けさを取り戻しました。すべて、あなたのおかげです。", "……ありがとう。この村を選んでくれて。" ],
+      linesBad:[ "……水霊の力は、もうあなたの中にあるのですね。", "泉は静かになりました。以前とは違う静けさですが……それも、あなたが選んだ道です。" ] });
+    addNPC({ x:AX+8,z:AZ-5, name:"網元の妻 セラ", col:{hair:"#8a4a3a",body:"#c9a24b",body2:"#9a7a38"},
+      lines:[
+        "アルニカにようこそ。うちの人（リオン）が世話になってるみたいで。",
+        "早く泉が元通りになるといいんだけど……あなたが噂の光の継承者？期待してるよ。"
+      ] });
+    addNPC({ x:AX-10,z:AZ-8, name:"旅の導師 フィオナ", col:{hair:"#cdb35a",body:"#4a3a6a",body2:"#332752"},
+      lines:[ "旅の導師フィオナだ。あんたの「生き方」、決めてみるかい？" ] });
+
     // ============================================================
     //  ステータス・装備・戦闘・モンスター・ショップ
     // ============================================================
@@ -1180,10 +1370,22 @@
       hp:40, maxHp:40, atk:0, def:0,
       weapon:0, armor:0, ownedW:{0:true}, ownedA:{0:true},
       accessory:0, ownedAcc:{0:true}, potions:0,
+      job:0, villageEndings:{}, corruptionPower:false,
       iframes:0, dodgeCd:0, attackCd:0, attackAnimT:0, dash:null, knock:null, dead:false
     });
-    function deriveStats(){ const w=WEAPONS[player.weapon], a=ARMORS[player.armor];
-      player.maxHp=player.baseMaxHp+a.hp; player.atk=player.baseAtk+w.atk; player.def=player.baseDef+a.def;
+    // --- 転職システム（固定の職業から選ぶ。ステータス倍率と髪・マントの色が変わる） ---
+    const JOBS=[
+      { id:"none",    name:"冒険者",   ic:"🌱", desc:"まだ何色にも染まっていない、旅の始まり。", atkMul:1,    defMul:1,    hpMul:1,    cdMul:1,    rangeBonus:0,   hair:null, cape:null },
+      { id:"warrior", name:"戦士",     ic:"⚔️", desc:"高い攻撃力と守りを兼ね備えた前衛。",         atkMul:1.22, defMul:1.15, hpMul:1.12, cdMul:1.0,  rangeBonus:0,   hair:"#7a3a2a", cape:"#8a2a2a" },
+      { id:"mage",    name:"魔法使い", ic:"🔮", desc:"一撃は軽いが、間合いに優れる。",             atkMul:1.4,  defMul:0.8,  hpMul:0.85, cdMul:1.05, rangeBonus:0.7, hair:"#3a4fae", cape:"#241f6b" },
+      { id:"rogue",   name:"盗賊",     ic:"🗡️", desc:"手数で押す、素早い身のこなし。",             atkMul:1.08, defMul:0.9,  hpMul:0.95, cdMul:0.72, rangeBonus:0,   hair:"#2f7d4a", cape:"#234f33" },
+      { id:"paladin", name:"聖騎士",   ic:"🛡️", desc:"重い守りで仲間を支える壁役。",               atkMul:0.95, defMul:1.4,  hpMul:1.3,  cdMul:1.15, rangeBonus:0.2, hair:"#cdb35a", cape:"#eae2c8" }
+    ];
+    function deriveStats(){ const w=WEAPONS[player.weapon], a=ARMORS[player.armor], job=JOBS[player.job||0];
+      const corr=player.corruptionPower?5:0;
+      player.maxHp=Math.round((player.baseMaxHp+a.hp)*job.hpMul);
+      player.atk=Math.round((player.baseAtk+w.atk)*job.atkMul)+corr;
+      player.def=Math.round((player.baseDef+a.def)*job.defMul);
       if(player.hp>player.maxHp) player.hp=player.maxHp; }
 
     // --- クエストログ（受注履歴・進行状況） ---
@@ -1193,7 +1395,11 @@
       { id:"floor2", title:"地下遺跡・2階への到達", desc:"さらに深くへ", target:1, locked:true },
       { id:"floor3", title:"地下遺跡・3階への到達", desc:"空気が重くなってきた", target:1, locked:true },
       { id:"floor4", title:"地下遺跡・最深部への到達", desc:"何かが待ち構えている", target:1, locked:true },
-      { id:"boss", title:"封じられし者", desc:"最深部の主を討伐する", target:1, locked:true }
+      { id:"boss", title:"封じられし者", desc:"最深部の主を討伐する", target:1, locked:true },
+      { id:"v2_arrive", title:"アルニカへ", desc:"灯火の地下遺跡を突破し、東の街道を進む", target:1, locked:true },
+      { id:"v2_greet", title:"アルニカの人々", desc:"漁師頭リオン・巫女ミント・セラと話す", target:3, locked:true },
+      { id:"v2_trial", title:"淀みを祓う", desc:"泉の周りに湧く「淀みの魔物」を3体たおす", target:3, locked:true },
+      { id:"v2_choice", title:"泉の選択", desc:"巫女ミントに、泉をどうするか伝える", target:1, locked:true }
     ];
     player.quests={};
     QUESTS.forEach(q=>{ player.quests[q.id]={ status:q.locked?"locked":"active", progress:0 }; });
@@ -1213,13 +1419,17 @@
     function onQuestComplete(def){
       addGold(30); addExp(10);
       floatText(player.x,player.z,"クエスト達成："+def.title,"#e6c268",true);
+      if(def.id==="v2_greet" && player.quests.v2_trial.status==="locked") player.quests.v2_trial.status="active";
+      if(def.id==="v2_trial" && player.quests.v2_choice.status==="locked") player.quests.v2_choice.status="active";
       saveGame(false);
     }
 
     // 装備変更を主人公の見た目（スプライト）に反映する
     function rebuildHeroTexture(){
       const armorVis=ARMOR_VISUAL[player.armor], weaponVis=WEAPON_VISUAL[player.weapon];
-      const newTex=makePersonSheet(Object.assign({}, HERO_BASE, armorVis), weaponVis);
+      const job=JOBS[player.job||0];
+      const heroBase=Object.assign({}, HERO_BASE, job.hair?{hair:job.hair}:{}, job.cape?{cape:job.cape}:{});
+      const newTex=makePersonSheet(Object.assign({}, heroBase, armorVis), weaponVis);
       const anim=hero.userData.anim, oldTex=anim.tex;
       anim.tex=newTex; hero.material.map=newTex; hero.material.needsUpdate=true;
       setCell(anim, anim.dir, anim.frame);
@@ -1296,16 +1506,20 @@
     const monsters=[];
     function pickType(){ const r=Math.random(); return r<0.42?0 : r<0.72?1 : r<0.93?2 : 3; }
     function spawnMonster(){
-      if(monsters.filter(m=>!m.bounds).length>=8) return;   // ダンジョン内モンスター（bounds持ち）は上限に含めない
+      // ダンジョン内モンスター（bounds持ち）や他の村の個体は上限に含めない（村ごとに独立して湧く）
+      if(monsters.filter(m=>!m.bounds && m.villageIdx===currentVillageIdx).length>=8) return;
       let x,z,tries=0;
       do{ const a=Math.random()*7, rr=FIELD_R+4+Math.random()*(FOREST_R-FIELD_R-8);
-        x=Math.cos(a)*rr; z=Math.sin(a)*rr; tries++;
+        x=VILLAGE_ORIGIN.x+Math.cos(a)*rr; z=VILLAGE_ORIGIN.z+Math.sin(a)*rr; tries++;
       }while(tries<14 && (Math.hypot(x-player.x,z-player.z)<14 || dist0(x,z)<FIELD_R+2));
       const T=MON_TYPES[pickType()];
       const m=makeBillboard(T.tex,T.w,T.h); m.position.set(x,0,z);
+      const corrupted = VILLAGES[currentVillageIdx] && VILLAGES[currentVillageIdx].corruptedMonsters;
+      if(corrupted) m.material.color.setRGB(0.68,0.58,0.92);
       const sh=new THREE.Mesh(new THREE.PlaneGeometry(T.r*2.4,T.r*2.4),shadowMat); sh.rotation.x=-Math.PI/2; sh.position.set(x,0.03,z); scene.add(sh);
       const hpEl=document.createElement("div"); hpEl.className="monhp"; hpEl.innerHTML="<i></i>"; document.body.appendChild(hpEl);
-      monsters.push({T, mesh:m, sh, x, z, hp:T.hp, maxHp:T.hp, atkCd:Math.random(), vx:0, vz:0, ph:Math.random()*7, hurtT:0, hpEl, hpShowT:0, face:1});
+      monsters.push({T, mesh:m, sh, x, z, hp:T.hp, maxHp:T.hp, atkCd:Math.random(), vx:0, vz:0, ph:Math.random()*7, hurtT:0, hpEl, hpShowT:0, face:1,
+        villageIdx:currentVillageIdx, corrupted});
     }
     function damageMonster(m,dmg,sx,sz){
       m.hp-=dmg; m.hurtT=0.12; m.mesh.material.color.setRGB(1,0.5,0.5);
@@ -1320,6 +1534,7 @@
       const bi=billboards.indexOf(m.mesh); if(bi>=0) billboards.splice(bi,1);
       const mi=monsters.indexOf(m); if(mi>=0) monsters.splice(mi,1);
       if(m.isBoss) onBossDefeated();
+      if(m.corrupted) progressQuest("v2_trial",1);
     }
     function updateMonsters(dt,t){
       const pInVillage = dist0(player.x,player.z) < FIELD_R;
@@ -1345,8 +1560,11 @@
         if(m.bounds){
           m.x=Math.max(m.bounds.minX,Math.min(m.bounds.maxX,m.x)); m.z=Math.max(m.bounds.minZ,Math.min(m.bounds.maxZ,m.z));
         } else {
-          const dc=dist0(m.x,m.z); if(dc<FIELD_R+1){ const k=(FIELD_R+1)/dc; m.x*=k; m.z*=k; }   // 村に入れない
-          m.x=Math.max(-WORLD,Math.min(WORLD,m.x)); m.z=Math.max(-WORLD,Math.min(WORLD,m.z));
+          // 村に入れない
+          const dc=dist0(m.x,m.z); if(dc<FIELD_R+1){ const k=(FIELD_R+1)/dc;
+            m.x=VILLAGE_ORIGIN.x+(m.x-VILLAGE_ORIGIN.x)*k; m.z=VILLAGE_ORIGIN.z+(m.z-VILLAGE_ORIGIN.z)*k; }
+          m.x=Math.max(VILLAGE_ORIGIN.x-WORLD,Math.min(VILLAGE_ORIGIN.x+WORLD,m.x));
+          m.z=Math.max(VILLAGE_ORIGIN.z-WORLD,Math.min(VILLAGE_ORIGIN.z+WORLD,m.z));
         }
         if(m.hurtT>0){ m.hurtT-=dt; if(m.hurtT<=0) m.mesh.material.color.setRGB(1,1,1); }
         if(m.flashT>0){ m.flashT-=dt; if(m.flashT<=0 && m.hurtT<=0) m.mesh.material.color.setRGB(1,1,1); }
@@ -1389,7 +1607,7 @@
       player.x=savedOutdoor.x; player.z=savedOutdoor.z; player.facing="down";
       indoorHouse=null;
       setZoneVisuals("outdoor");
-      showBanner("ルミナ村","SAFE ZONE");
+      showBanner(VILLAGES[currentVillageIdx].name,"SAFE ZONE");
     }
 
     // ============================================================
@@ -1588,19 +1806,24 @@
       } else {
         // 円形の境界（木々・崖・川のリングと同じ半径）。矩形クランプだと対角線上に隙間ができるため使わない
         const dc=dist0(player.x,player.z);
-        if(dc>WORLD){ const k=WORLD/dc; player.x*=k; player.z*=k; }
+        if(dc>WORLD){ const k=WORLD/dc;
+          player.x=VILLAGE_ORIGIN.x+(player.x-VILLAGE_ORIGIN.x)*k;
+          player.z=VILLAGE_ORIGIN.z+(player.z-VILLAGE_ORIGIN.z)*k;
+        }
       }
     }
     function faceVec(){ switch(player.facing){ case "up":return[0,-1]; case "down":return[0,1]; case "left":return[-1,0]; default:return[1,0]; } }
     function doAttack(){
       if(player.dead || player.attackCd>0) return;
-      const w=WEAPONS[player.weapon]; player.attackCd=w.cd;
-      player.attackAnimT=Math.min(0.22, w.cd*0.85);   // 攻撃の振り抜きポーズを短く見せる
+      const w=WEAPONS[player.weapon], job=JOBS[player.job||0];
+      const cd=w.cd*job.cdMul, range=w.range+job.rangeBonus;
+      player.attackCd=cd;
+      player.attackAnimT=Math.min(0.22, cd*0.85);   // 攻撃の振り抜きポーズを短く見せる
       const [fx,fz]=faceVec(); const fa=Math.atan2(fx,fz);
       spawnSlash(player.x+fx*1.2, player.z+fz*1.2);
       for(const m of monsters.slice()){
         const dx=m.x-player.x, dz=m.z-player.z, d=Math.hypot(dx,dz);
-        if(d>w.range+m.T.r) continue;
+        if(d>range+m.T.r) continue;
         let diff=Math.abs(Math.atan2(dx,dz)-fa); if(diff>Math.PI) diff=2*Math.PI-diff;
         if(diff<=w.arc){ let dmg=Math.max(1,Math.round((player.atk-m.T.def)*(0.85+Math.random()*0.3)));
           if(Math.random()<0.1) dmg=Math.round(dmg*1.6); damageMonster(m,dmg,player.x,player.z); }
@@ -1624,7 +1847,7 @@
     function playerDie(){
       player.dead=true; player.hp=0; updateHUD(); showBanner("力尽きた…","村で目を覚ます");
       setTimeout(()=>{
-        player.x=0; player.z=7; player.dead=false; player.hp=player.maxHp; player.iframes=1.5; player.dash=null; player.knock=null;
+        player.x=VILLAGE_ORIGIN.x; player.z=VILLAGE_ORIGIN.z+7; player.dead=false; player.hp=player.maxHp; player.iframes=1.5; player.dash=null; player.knock=null;
         indoorHouse=null; dungeonFloor=0; hideTorches(); setZoneVisuals("outdoor"); updateHUD();
       },1500);
     }
@@ -1718,6 +1941,67 @@
       updateHUD(); saveGame(false);
     }
 
+    // --- アルニカ：泉の選択（グッド／バッドエンド分岐） ---
+    const choiceEl=document.getElementById("choice"), choiceTitleEl=document.getElementById("choice-title"),
+          choiceTextEl=document.getElementById("choice-text"), choiceAEl=document.getElementById("choice-a"), choiceBEl=document.getElementById("choice-b");
+    function openChoiceModal(title,text,aLabel,bLabel,onA,onB){
+      choiceOpen=true; choiceEl.style.display="flex";
+      choiceTitleEl.textContent=title; choiceTextEl.textContent=text;
+      choiceAEl.textContent=aLabel; choiceBEl.textContent=bLabel;
+      choiceAEl.onclick=()=>{ closeChoiceModal(); onA(); };
+      choiceBEl.onclick=()=>{ closeChoiceModal(); onB(); };
+    }
+    function closeChoiceModal(){ choiceOpen=false; choiceEl.style.display="none"; }
+    function openSpringChoice(){
+      openChoiceModal("泉の選択",
+        "静心の泉に宿る水霊の力を、どうしますか？",
+        "浄化して村に還す","力を引き受ける",
+        ()=>applyArnicaEnding("good"), ()=>applyArnicaEnding("bad"));
+    }
+    function setArnicaSpringVisual(kind){
+      if(!arnicaSpringWaterMat) return;
+      if(kind==="good"){ arnicaSpringWaterMat.color.set(0x6fc7e6); arnicaSpringTopMat.color.set(0x9fe0f0); }
+      else if(kind==="bad"){ arnicaSpringWaterMat.color.set(0x2a1f38); arnicaSpringTopMat.color.set(0x4a2f5a); }
+      else { arnicaSpringWaterMat.color.set(0x4a5a52); arnicaSpringTopMat.color.set(0x5a6a5f); }
+    }
+    function applyArnicaEnding(kind){
+      player.villageEndings.arnica=kind;
+      setArnicaSpringVisual(kind);
+      progressQuest("v2_choice",1);
+      if(kind==="good"){
+        addGold(300); addExp(80);
+        showBanner("泉は清められた","アルニカ・グッドエンド");
+      } else {
+        player.corruptionPower=true; deriveStats();
+        showBanner("泉の力を、その身に宿した","アルニカ・バッドエンド");
+      }
+      updateHUD(); saveGame(false);
+    }
+
+    // --- 転職モーダル（フィオナと話すと開く。いつでも選び直せる） ---
+    const jobselectEl=document.getElementById("jobselect"), jobListEl=document.getElementById("job-list");
+    function openJobSelect(){ jobSelectOpen=true; jobselectEl.style.display="flex"; buildJobList(); }
+    function closeJobSelect(){ jobSelectOpen=false; jobselectEl.style.display="none"; }
+    document.getElementById("jobselect-close").addEventListener("click",closeJobSelect);
+    function buildJobList(){
+      jobListEl.innerHTML="";
+      JOBS.forEach((job,idx)=>{
+        const isEq=(idx===(player.job||0));
+        const row=document.createElement("div");
+        row.className="item"+(isEq?" equipped":"");
+        const stat="攻撃"+Math.round(job.atkMul*100)+"%／防御"+Math.round(job.defMul*100)+"%／HP"+Math.round(job.hpMul*100)+"%";
+        row.innerHTML='<div class="ic">'+job.ic+'</div><div class="nm">'+job.name+'<small>'+job.desc+'／'+stat+'</small></div>'
+          +'<div class="pr">'+(isEq?'<span class="eq">選択中</span>':'選ぶ')+'</div>';
+        row.addEventListener("click",()=>selectJob(idx));
+        jobListEl.appendChild(row);
+      });
+    }
+    function selectJob(idx){
+      if(idx===player.job) return;
+      player.job=idx; deriveStats(); updateHUD(); rebuildHeroTexture(); buildJobList(); saveGame(false);
+      floatText(player.x,player.z,JOBS[idx].name+"になった","#e6c268",true);
+    }
+
     // --- セーブ／オートセーブ（localStorage） ---
     const SAVE_KEY="lumina_save_v1";
     let lastSaveAt=0;
@@ -1735,8 +2019,9 @@
           baseMaxHp:player.baseMaxHp, baseAtk:player.baseAtk, baseDef:player.baseDef, hp:player.hp,
           weapon:player.weapon, armor:player.armor, ownedW:player.ownedW, ownedA:player.ownedA,
           accessory:player.accessory, ownedAcc:player.ownedAcc, potions:player.potions,
+          job:player.job, villageEndings:player.villageEndings, corruptionPower:player.corruptionPower,
           quests:player.quests, greeted:Array.from(greetedSet), dungeonBossDefeated,
-          totalGameHours, weather,
+          totalGameHours, weather, currentVillageIdx,
           x:pos.x, z:pos.z, savedAt:Date.now() };
         localStorage.setItem(SAVE_KEY, JSON.stringify(data));
         lastSaveAt=data.savedAt; updateSaveStatusLabel();
@@ -1753,12 +2038,17 @@
           baseMaxHp:d.baseMaxHp, baseAtk:d.baseAtk, baseDef:d.baseDef,
           weapon:d.weapon||0, armor:d.armor||0, ownedW:d.ownedW||{0:true}, ownedA:d.ownedA||{0:true},
           accessory:d.accessory||0, ownedAcc:d.ownedAcc||{0:true}, potions:d.potions||0,
-          quests:d.quests||player.quests,
+          job:d.job||0, villageEndings:d.villageEndings||{}, corruptionPower:!!d.corruptionPower,
+          // 新しく追加されたクエストIDも既定値で持てるよう、既定値に保存分を上書きする形でマージする
+          quests:d.quests?Object.assign({},player.quests,d.quests):player.quests,
           x:(typeof d.x==="number")?d.x:0, z:(typeof d.z==="number")?d.z:7 });
         if(Array.isArray(d.greeted)){ greetedSet.clear(); d.greeted.forEach(n=>greetedSet.add(n)); }
         if(d.dungeonBossDefeated) dungeonBossDefeated=true;
         if(typeof d.totalGameHours==="number") totalGameHours=d.totalGameHours;
         if(typeof d.weather==="string") weather=d.weather;
+        currentVillageIdx=(typeof d.currentVillageIdx==="number")?d.currentVillageIdx:0;
+        VILLAGE_ORIGIN=VILLAGES[currentVillageIdx].origin;
+        if(player.villageEndings.arnica) setArnicaSpringVisual(player.villageEndings.arnica);
         deriveStats();
         player.hp=(typeof d.hp==="number")?Math.min(d.hp,player.maxHp):player.maxHp;
         lastSaveAt=d.savedAt||0;
@@ -1784,7 +2074,7 @@
           m_saveBtn=document.getElementById("menu-save-btn"), m_saveStatus=document.getElementById("menu-save-status");
     function openMenu(){ menuOpen=true; menuEl.style.display="flex"; updateMenu(); }
     function closeMenu(){ menuOpen=false; menuEl.style.display="none"; }
-    menuBtn.addEventListener("click",()=>{ if(menuOpen) closeMenu(); else if(!convo && !shopOpen) openMenu(); });
+    menuBtn.addEventListener("click",()=>{ if(menuOpen) closeMenu(); else if(!convo && !shopOpen && !choiceOpen && !jobSelectOpen) openMenu(); });
     document.getElementById("menu-close").addEventListener("click",closeMenu);
     m_saveBtn.addEventListener("click",()=>saveGame(true));
     m_potionUse.addEventListener("click",()=>{ usePotion(); updateMenu(); });
@@ -1850,8 +2140,19 @@
     const dialog=document.getElementById("dialog");
     const dName=document.getElementById("d-name"), dText=document.getElementById("d-text");
     let convo=null, convoIdx=0, typing=null, shownFull="";
+    // NPCによっては、進行状況やエンディングに応じて話す内容が変わる
+    function pickNpcLines(npc){
+      if(npc.linesGood || npc.linesBad || npc.linesTrial){
+        const ending=player.villageEndings.arnica;
+        if(ending==="good" && npc.linesGood) return npc.linesGood;
+        if(ending==="bad" && npc.linesBad) return npc.linesBad;
+        if(!ending && npc.linesTrial && player.quests.v2_trial && player.quests.v2_trial.status==="done") return npc.linesTrial;
+      }
+      return npc.lines;
+    }
+    let convoNpcName=null;
     function openConvo(name, lines){
-      convo=lines; convoIdx=0; dName.textContent=name; dialog.style.display="block";
+      convo=lines; convoIdx=0; convoNpcName=name; dName.textContent=name; dialog.style.display="block";
       document.getElementById("quest").style.opacity="0";
       showLine();
     }
@@ -1870,8 +2171,16 @@
       if(convoIdx>=convo.length){ closeConvo(); return; }
       showLine();
     }
-    function closeConvo(){ convo=null; dialog.style.display="none"; clearInterval(typing);
-      setQuest("森の入口（東の門）を目指そう"); }
+    function closeConvo(){
+      convo=null; dialog.style.display="none"; clearInterval(typing);
+      setQuest("森の入口（東の門）を目指そう");
+      if(convoNpcName==="巫女 ミント" && !player.villageEndings.arnica &&
+         player.quests.v2_trial && player.quests.v2_trial.status==="done"){
+        openSpringChoice();
+      }
+      if(convoNpcName==="旅の導師 フィオナ") openJobSelect();
+      convoNpcName=null;
+    }
     dialog.addEventListener("pointerdown",(e)=>{ e.preventDefault(); advanceConvo(); });
 
     const questBar=document.getElementById("quest"), questText=document.getElementById("quest-text");
@@ -1915,6 +2224,7 @@
     const actBtn=document.getElementById("act");
     let nearTarget=null;
     const GREET_NAMES=new Set(["村長 オルヴァ","見習い リィナ","門番 ダグ","道具屋 マーサ"]);
+    const V2_GREET_NAMES=new Set(["漁師頭 リオン","巫女 ミント","網元の妻 セラ"]);
     const greetedSet=new Set();
 
     // --- ミニマップ：現在地とクエストの目的地を示す ---
@@ -1924,7 +2234,8 @@
     // 中心（村）付近を広げ、外側（フィールド）を圧縮する半径べき乗マッピング。村の中の店が見分けやすくなる
     function mmRadius(worldDist){ return Math.pow(worldDist/WORLD,0.58)*MM_R; }
     function mmPoint(x,z){
-      const d=Math.hypot(x,z)||0.0001, ang=Math.atan2(z,x);
+      const rx=x-VILLAGE_ORIGIN.x, rz=z-VILLAGE_ORIGIN.z;
+      const d=Math.hypot(rx,rz)||0.0001, ang=Math.atan2(rz,rx);
       const md=mmRadius(d);
       return { mx:MM_C+Math.cos(ang)*md, my:MM_C+Math.sin(ang)*md };
     }
@@ -1933,25 +2244,39 @@
       if(n.shop){ const b=buildings.find(b=>b.type===n.shop); if(b) return { x:b.doorX, z:b.doorZ }; }
       return { x:n.x, z:n.z };
     }
+    function nearestOf(names){
+      const remaining=npcs.filter(n=>names.has(n.name) && !greetedSet.has(n.name));
+      if(!remaining.length) return null;
+      let best=npcMapPos(remaining[0]), bd=Infinity;
+      remaining.forEach(n=>{ const p=npcMapPos(n); const d=(p.x-player.x)**2+(p.z-player.z)**2; if(d<bd){ bd=d; best=p; } });
+      return best;
+    }
     function getQuestTargetPos(){
-      if(player.quests.greet.status==="active"){
-        const remaining=npcs.filter(n=>GREET_NAMES.has(n.name) && !greetedSet.has(n.name));
-        if(remaining.length){
-          let best=npcMapPos(remaining[0]), bd=Infinity;
-          remaining.forEach(n=>{ const p=npcMapPos(n); const d=(p.x-player.x)**2+(p.z-player.z)**2; if(d<bd){ bd=d; best=p; } });
-          return best;
+      if(currentVillageIdx===0){
+        if(player.quests.greet.status==="active"){ const p=nearestOf(GREET_NAMES); if(p) return p; }
+        const dungeonIds=["floor1","floor2","floor3","floor4","boss"];
+        if(dungeonIds.some(id=>player.quests[id].status==="locked")){
+          const dag=npcs.find(n=>n.name==="門番 ダグ"); if(dag) return { x:dag.x, z:dag.z };
         }
+        if(dungeonIds.some(id=>player.quests[id].status==="active")) return { x:dungeonEntrance.x, z:dungeonEntrance.z };
+        // 次の村のクエストが進行中なら、街道の場所を示す
+        const v2active=["v2_greet","v2_trial","v2_choice"].some(id=>player.quests[id] && player.quests[id].status==="active");
+        if(v2active && VILLAGES[1].roadFrom && VILLAGES[1].roadFrom.villageIdx===0) return { x:VILLAGES[1].roadFrom.x, z:VILLAGES[1].roadFrom.z };
+        return null;
       }
-      const dungeonIds=["floor1","floor2","floor3","floor4","boss"];
-      if(dungeonIds.some(id=>player.quests[id].status==="locked")){
-        const dag=npcs.find(n=>n.name==="門番 ダグ"); if(dag) return { x:dag.x, z:dag.z };
+      if(currentVillageIdx===1){
+        if(player.quests.v2_greet && player.quests.v2_greet.status==="active"){ const p=nearestOf(V2_GREET_NAMES); if(p) return p; }
+        if(player.quests.v2_trial && player.quests.v2_trial.status==="active") return { x:ARNICA_ORIGIN.x, z:ARNICA_ORIGIN.z };
+        if(player.quests.v2_choice && player.quests.v2_choice.status==="active"){
+          const mint=npcs.find(n=>n.name==="巫女 ミント"); if(mint) return { x:mint.x, z:mint.z };
+        }
+        return null;
       }
-      if(dungeonIds.some(id=>player.quests[id].status==="active")) return { x:dungeonEntrance.x, z:dungeonEntrance.z };
       return null;
     }
     // 店の位置が近すぎて重なる場合は、平均位置の周りに少しだけ広げて描く（見分けやすさ優先）
     function drawShopIcons(){
-      const pts=buildings.filter(b=>SHOP_MM_COLORS[b.type]).map(b=>({ type:b.type, p:mmPoint(b.x,b.z) }));
+      const pts=buildings.filter(b=>SHOP_MM_COLORS[b.type] && b.villageIdx===currentVillageIdx).map(b=>({ type:b.type, p:mmPoint(b.x,b.z) }));
       const used=new Array(pts.length).fill(false), CLUSTER_PX=6.5;
       for(let i=0;i<pts.length;i++){
         if(used[i]) continue;
@@ -1987,9 +2312,16 @@
       mmCtx.strokeStyle="rgba(230,194,104,0.45)"; mmCtx.lineWidth=1; mmCtx.stroke();
       mmCtx.beginPath(); mmCtx.arc(MM_C,MM_C,2.6,0,Math.PI*2); mmCtx.fillStyle="#9fe0f0"; mmCtx.fill();
       drawShopIcons();
-      const dp=mmPoint(dungeonEntrance.x,dungeonEntrance.z);
-      mmCtx.beginPath(); mmCtx.arc(dp.mx,dp.my,3,0,Math.PI*2);
-      mmCtx.fillStyle="#2a2430"; mmCtx.fill(); mmCtx.strokeStyle="#e6c268"; mmCtx.lineWidth=1; mmCtx.stroke();
+      if(currentVillageIdx===0){
+        const dp=mmPoint(dungeonEntrance.x,dungeonEntrance.z);
+        mmCtx.beginPath(); mmCtx.arc(dp.mx,dp.my,3,0,Math.PI*2);
+        mmCtx.fillStyle="#2a2430"; mmCtx.fill(); mmCtx.strokeStyle="#e6c268"; mmCtx.lineWidth=1; mmCtx.stroke();
+      }
+      VILLAGES.forEach((v,i)=>{ if(i!==currentVillageIdx && v.roadFrom && v.roadFrom.villageIdx===currentVillageIdx){
+        const rp=mmPoint(v.roadFrom.x, v.roadFrom.z);
+        mmCtx.beginPath(); mmCtx.arc(rp.mx,rp.my,3,0,Math.PI*2);
+        mmCtx.fillStyle="#2a2430"; mmCtx.fill(); mmCtx.strokeStyle="#8fd0c9"; mmCtx.lineWidth=1; mmCtx.stroke();
+      }});
       const qt=getQuestTargetPos();
       if(qt){
         const qp=mmPoint(qt.x,qt.z), pulse=2.2+Math.sin(performance.now()/220)*1.1;
@@ -2009,18 +2341,21 @@
     }
     function tryAct(){
       if(convo){ advanceConvo(); return; }
-      if(shopOpen || menuOpen) return;
+      if(shopOpen || menuOpen || choiceOpen || jobSelectOpen) return;
       if(nearTarget){
         if(nearTarget.type==="door"){ enterBuilding(nearTarget.building); return; }
         if(nearTarget.type==="exit"){ exitBuilding(); return; }
         if(nearTarget.type==="chest"){ openChest(nearTarget.chest); return; }
         if(GREET_NAMES.has(nearTarget.name) && !greetedSet.has(nearTarget.name)){
-          greetedSet.add(nearTarget.name); progressQuest("greet",1); }
+          greetedSet.add(nearTarget.name); progressQuest("greet",1);
+        } else if(V2_GREET_NAMES.has(nearTarget.name) && !greetedSet.has(nearTarget.name)){
+          greetedSet.add(nearTarget.name); progressQuest("v2_greet",1);
+        }
         if(nearTarget.shop==="inn") restAtInn();
         else if(nearTarget.shop) openShop(nearTarget.shop, nearTarget.name);
         else {
           if(nearTarget.name==="門番 ダグ") acceptDungeonQuests();
-          openConvo(nearTarget.name, nearTarget.lines);
+          openConvo(nearTarget.name, pickNpcLines(nearTarget));
         }
         return;
       }
@@ -2058,7 +2393,7 @@
       player.dodgeCd=Math.max(0,player.dodgeCd-dt);
       player.iframes=Math.max(0,player.iframes-dt);
 
-      const canMove = !convo && !shopOpen && !menuOpen && !player.dead;
+      const canMove = !convo && !shopOpen && !menuOpen && !choiceOpen && !jobSelectOpen && !player.dead;
       const walking = canMove && moving;
       if(walking){
         const sp=player.speed*dt;
@@ -2114,7 +2449,18 @@
       if(!indoorHouse && !dungeonFloor){
         const nowField = dist0(player.x,player.z)>FIELD_R;
         if(nowField!==inField){ inField=nowField;
-          if(inField) showBanner("ルミナ郊外","FIELD ・ 魔物出現"); else showBanner("ルミナ村","SAFE ZONE"); }
+          const v=VILLAGES[currentVillageIdx];
+          if(inField) showBanner(v.fieldName,"FIELD ・ 魔物出現"); else showBanner(v.name,"SAFE ZONE"); }
+      }
+      // 街道：村の外れまで歩くと隣村へ自動的に旅立つ
+      roadTransitionCooldown=Math.max(0,roadTransitionCooldown-dt);
+      if(roadTransitionCooldown<=0 && !indoorHouse && !dungeonFloor && !convo && !shopOpen && !menuOpen && !choiceOpen && !player.dead){
+        for(const v of VILLAGES){
+          if(v.roadFrom && v.roadFrom.villageIdx===currentVillageIdx){
+            const rdx=player.x-v.roadFrom.x, rdz=player.z-v.roadFrom.z;
+            if(rdx*rdx+rdz*rdz < v.roadFrom.r*v.roadFrom.r){ tryTravel(v.idx); break; }
+          }
+        }
       }
       if(bannerT>0){ bannerT-=dt; if(bannerT<=0) banner.style.opacity="0"; }
       if(dungeonFloor){ torchLights.forEach((l,i)=>{ if(l.intensity>0) l.intensity=2.8+Math.sin(t*9+i*2)*0.4+Math.random()*0.15; }); }
@@ -2123,7 +2469,7 @@
 
       // ダンジョン入口・階段は歩いて踏むだけで自動的に切り替わる（攻撃ボタンと場所を取り合わないように）
       transitionCooldown=Math.max(0,transitionCooldown-dt);
-      if(transitionCooldown<=0 && !convo && !shopOpen && !menuOpen && !player.dead){
+      if(transitionCooldown<=0 && !convo && !shopOpen && !menuOpen && !choiceOpen && !jobSelectOpen && !player.dead){
         if(!indoorHouse && !dungeonFloor){
           const ddx=player.x-dungeonEntrance.x, ddz=player.z-dungeonEntrance.z;
           if(ddx*ddx+ddz*ddz < dungeonEntrance.r*dungeonEntrance.r) enterDungeon();
@@ -2150,7 +2496,7 @@
       for(const o of all){ const dx=player.x-o.x,dz=player.z-o.z; const d=dx*dx+dz*dz;
         if(d<o.r*o.r && d<best){ best=d; nearTarget=o; } }
       if(convo){ actBtn.textContent="つぎへ"; actBtn.classList.remove("combat"); promptEl.style.display="none"; }
-      else if(shopOpen || menuOpen){ promptEl.style.display="none"; }
+      else if(shopOpen || menuOpen || choiceOpen || jobSelectOpen){ promptEl.style.display="none"; }
       else if(nearTarget){
         actBtn.classList.add("show"); actBtn.classList.remove("combat");
         actBtn.textContent = nearTarget.type==="door" ? "はいる" : nearTarget.type==="exit" ? "でる"
@@ -2163,7 +2509,7 @@
         actBtn.classList.add("show","combat"); actBtn.textContent="こうげき"; promptEl.style.display="none";
       }
       // 回避ボタン（フィールドでのみ）
-      dodgeBtn.style.display = ((inField||dungeonFloor) && !convo && !shopOpen && !menuOpen && !player.dead) ? "flex" : "none";
+      dodgeBtn.style.display = ((inField||dungeonFloor) && !convo && !shopOpen && !menuOpen && !choiceOpen && !jobSelectOpen && !player.dead) ? "flex" : "none";
       dodgeBtn.classList.toggle("cool", player.dodgeCd>0);
       drawMinimap();
 
