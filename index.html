@@ -131,6 +131,8 @@
   #stats .xp{ height:6px; } #stats .xp i{ background:linear-gradient(180deg,#8fe6d6,#3fb8a6); }
   #stats .bar span{ position:absolute; inset:0; text-align:center; font-size:9px; line-height:11px; color:#fff; text-shadow:0 1px 1px #000; }
   #stats .gear{ margin-top:6px; font-size:11px; color:#e8dcc0; line-height:1.5; }
+  #stats .clock{ margin-top:5px; padding-top:5px; border-top:1px solid rgba(230,194,104,.18);
+    font-size:11px; color:#cbb8f0; letter-spacing:.03em; }
 
   /* ---- 回避ボタン ---- */
   #dodge{ position:absolute; right:calc(env(safe-area-inset-right,0) + 130px); bottom:calc(env(safe-area-inset-bottom,0) + 54px);
@@ -285,6 +287,7 @@
     <div class="bar hp"><i id="s-hp" style="width:100%"></i><span id="s-hptext">40/40</span></div>
     <div class="bar xp"><i id="s-xp" style="width:0%"></i></div>
     <div class="gear" id="s-gear">⚔ こんぼう ／ 🛡 旅の服</div>
+    <div class="clock" id="s-clock">☀️ 08:00・1日目</div>
   </div>
 
   <div id="banner"><div class="b1"></div><div class="b2"></div></div>
@@ -319,6 +322,7 @@
       <span><i style="background:#e0663a"></i>武器</span>
       <span><i style="background:#5a8fc9"></i>防具</span>
       <span><i style="background:#5fae64"></i>道具</span>
+      <span><i style="background:#c97fd4"></i>宿屋</span>
     </div>
   </div>
   <div id="menu"><div class="panel">
@@ -395,15 +399,22 @@
     const camera = new THREE.PerspectiveCamera(30, innerWidth/innerHeight, 1, 220);
     const CAM_OFF = new THREE.Vector3(0, 10.5, 12.5);   // 見下ろし角のHD-2D構図
 
-    // 空グラデーション背景
-    let skyTex=null;
+    // 空グラデーション背景（時間帯で塗り直すためcanvas/ctxを保持しておく）
+    let skyTex=null, skyCanvas=null, skyCtx=null;
     (function(){
       const c=document.createElement("canvas"); c.width=8; c.height=256; const g=c.getContext("2d");
+      skyCanvas=c; skyCtx=g;
       const grd=g.createLinearGradient(0,0,0,256);
       grd.addColorStop(0,"#8fb8e8"); grd.addColorStop(.45,"#e9c79a"); grd.addColorStop(1,"#f6d9a6");
       g.fillStyle=grd; g.fillRect(0,0,8,256);
       skyTex=new THREE.CanvasTexture(c); skyTex.encoding=THREE.sRGBEncoding; scene.background=skyTex;
     })();
+    function hex6(n){ return "#"+n.toString(16).padStart(6,"0"); }
+    function setSkyGradient(topHex,midHex,botHex){
+      const grd=skyCtx.createLinearGradient(0,0,0,256);
+      grd.addColorStop(0,hex6(topHex)); grd.addColorStop(.45,hex6(midHex)); grd.addColorStop(1,hex6(botHex));
+      skyCtx.fillStyle=grd; skyCtx.fillRect(0,0,8,256); skyTex.needsUpdate=true;
+    }
 
     // ライト（暖色の日差し＋空の反射光）。屋内・ダンジョンではzoneLightingで暗く落とす
     const hemi = new THREE.HemisphereLight(0xfff1d6, 0x4a5a4a, 0.95); scene.add(hemi);
@@ -412,8 +423,10 @@
     const ambient = new THREE.AmbientLight(0x6a6480, 0.35); scene.add(ambient);
     const LIGHT_BASE={ hemi:0.95, sun:1.15, ambient:0.35 };
     const DUNGEON_BG=new THREE.Color(0x0a0810);
-    // ゾーン（村・屋内・ダンジョン）に応じて明るさ・空・霧を切り替える
+    // ゾーン（村・屋内・ダンジョン）に応じて明るさ・空・霧を切り替える。屋外は時間・天候システムが毎フレーム上書きする
+    let currentZone="outdoor";
     function setZoneVisuals(zone){
+      currentZone=zone;
       if(zone==="dungeon"){
         hemi.intensity=0.10; sun.intensity=0.04; ambient.intensity=0.08;
         scene.background=DUNGEON_BG; scene.fog.color.set(0x05040a); scene.fog.near=6; scene.fog.far=30;
@@ -424,6 +437,106 @@
         hemi.intensity=LIGHT_BASE.hemi; sun.intensity=LIGHT_BASE.sun; ambient.intensity=LIGHT_BASE.ambient;
         scene.background=skyTex; scene.fog.color.set(0xe9b98a); scene.fog.near=32; scene.fog.far=96;
       }
+    }
+
+    // ============================================================
+    //  時間・天候システム（屋外にいる間だけ、光と空をなめらかに時間帯・天候で変化させる）
+    // ============================================================
+    const DAY_LEN_SEC = 600;          // 実時間10分でゲーム内1日（24時間）
+    let totalGameHours = 8;           // 通算経過時間（0時起点）。セーブに保存
+    let weather = "clear";            // "clear" | "cloudy" | "rain"
+    let weatherTimer = 60 + Math.random()*50;
+    function gameHourOfDay(){ return totalGameHours%24; }
+    function gameDayNumber(){ return Math.floor(totalGameHours/24)+1; }
+    function rollWeather(force){
+      if(!force && Math.random()<0.55) return;   // 天候はある程度持続させる
+      const r=Math.random();
+      weather = r<0.55 ? "clear" : r<0.85 ? "cloudy" : "rain";
+    }
+    // 時刻ごとの光・空の色キーフレーム（線形補間でなめらかに繋ぐ）
+    const TIME_KEYS=[
+      {h:0,   top:0x0d1330, mid:0x182047, bot:0x232a52, fog:0x12172c, hemiSky:0x3a4570, hemiI:0.22, sunCol:0x4a5a9a, sunI:0.06, ambI:0.16},
+      {h:5,   top:0x253364, mid:0x7a5a7a, bot:0xd99a78, fog:0xc98868, hemiSky:0x8a7aa0, hemiI:0.50, sunCol:0xffab7a, sunI:0.50, ambI:0.22},
+      {h:8,   top:0x8fb8e8, mid:0xe9c79a, bot:0xf6d9a6, fog:0xe9b98a, hemiSky:0xfff1d6, hemiI:0.95, sunCol:0xffdca0, sunI:1.15, ambI:0.35},
+      {h:16,  top:0x8fb8e8, mid:0xeccb95, bot:0xf7dca0, fog:0xe9b389, hemiSky:0xfff0d0, hemiI:0.92, sunCol:0xffd497, sunI:1.08, ambI:0.34},
+      {h:18.5,top:0x3a4a8a, mid:0xe8703a, bot:0xffb37a, fog:0xd97a4a, hemiSky:0xffb37a, hemiI:0.55, sunCol:0xff8a5a, sunI:0.55, ambI:0.26},
+      {h:21,  top:0x10173a, mid:0x1c2452, bot:0x2a3160, fog:0x171d3a, hemiSky:0x4a5580, hemiI:0.30, sunCol:0x5a6aa0, sunI:0.12, ambI:0.18},
+      {h:24,  top:0x0d1330, mid:0x182047, bot:0x232a52, fog:0x12172c, hemiSky:0x3a4570, hemiI:0.22, sunCol:0x4a5a9a, sunI:0.06, ambI:0.16}
+    ];
+    const _cA=new THREE.Color(), _cTop=new THREE.Color(), _cMid=new THREE.Color(), _cBot=new THREE.Color(),
+          _cFog=new THREE.Color(), _cHemiSky=new THREE.Color(), _cSun=new THREE.Color(), _tint=new THREE.Color();
+    function timeLerp(hour){
+      let i=0; while(i<TIME_KEYS.length-2 && hour>TIME_KEYS[i+1].h) i++;
+      const k0=TIME_KEYS[i], k1=TIME_KEYS[i+1], t=(hour-k0.h)/(k1.h-k0.h);
+      _cTop.setHex(k0.top).lerp(_cA.setHex(k1.top),t);
+      _cMid.setHex(k0.mid).lerp(_cA.setHex(k1.mid),t);
+      _cBot.setHex(k0.bot).lerp(_cA.setHex(k1.bot),t);
+      _cFog.setHex(k0.fog).lerp(_cA.setHex(k1.fog),t);
+      _cHemiSky.setHex(k0.hemiSky).lerp(_cA.setHex(k1.hemiSky),t);
+      _cSun.setHex(k0.sunCol).lerp(_cA.setHex(k1.sunCol),t);
+      return { hemiI:k0.hemiI+(k1.hemiI-k0.hemiI)*t, sunI:k0.sunI+(k1.sunI-k0.sunI)*t, ambI:k0.ambI+(k1.ambI-k0.ambI)*t };
+    }
+    function applyTimeWeatherLighting(){
+      const base=timeLerp(gameHourOfDay());
+      let hemiI=base.hemiI, sunI=base.sunI, ambI=base.ambI;
+      if(weather==="cloudy"){
+        hemiI*=0.72; sunI*=0.55; ambI*=0.9;
+        _cTop.lerp(_tint.setHex(0x8d95a0),0.35); _cMid.lerp(_tint,0.35); _cBot.lerp(_tint,0.3);
+        _cFog.lerp(_tint,0.35); _cHemiSky.lerp(_tint,0.3);
+      } else if(weather==="rain"){
+        hemiI*=0.58; sunI*=0.3; ambI*=0.85;
+        _cTop.lerp(_tint.setHex(0x5a6470),0.5); _cMid.lerp(_tint,0.5); _cBot.lerp(_tint,0.45);
+        _cFog.lerp(_tint,0.5); _cHemiSky.lerp(_tint,0.42);
+      }
+      hemi.intensity=hemiI; sun.intensity=sunI; ambient.intensity=ambI;
+      hemi.color.copy(_cHemiSky); sun.color.copy(_cSun);
+      scene.fog.color.copy(_cFog);
+      const nearMul=weather==="rain"?0.55:weather==="cloudy"?0.75:1, farMul=weather==="rain"?0.5:weather==="cloudy"?0.72:1;
+      scene.fog.near=32*nearMul; scene.fog.far=96*farMul;
+      setSkyGradient(_cTop.getHex(), _cMid.getHex(), _cBot.getHex());
+    }
+    const WEATHER_ICON={ clear:"☀️", cloudy:"☁️", rain:"🌧️" };
+    function isNightHour(h){ return h<5 || h>=19; }
+    function clockLabel(){
+      const h=gameHourOfDay(), hh=Math.floor(h), mm=Math.floor((h-hh)*60);
+      const icon = isNightHour(h) ? (weather==="clear"?"🌙":WEATHER_ICON[weather]) : WEATHER_ICON[weather];
+      return icon+" "+String(hh).padStart(2,"0")+":"+String(mm).padStart(2,"0")+"・"+gameDayNumber()+"日目";
+    }
+    const s_clock=document.getElementById("s-clock");
+    function updateClockHUD(){ s_clock.textContent=clockLabel(); }
+
+    // --- 天候演出：雨（プレイヤー周囲に追従する粒子。屋外かつ雨天のときだけ表示） ---
+    const rainSys=(function(){
+      const rc=document.createElement("canvas"); rc.width=8; rc.height=32; const rg=rc.getContext("2d");
+      const grad=rg.createLinearGradient(0,0,0,32);
+      grad.addColorStop(0,"rgba(190,215,240,0)"); grad.addColorStop(0.5,"rgba(205,228,248,0.95)"); grad.addColorStop(1,"rgba(190,215,240,0)");
+      rg.fillStyle=grad; rg.fillRect(0,0,8,32);
+      const rainTex=new THREE.CanvasTexture(rc);
+      const N=260, g=new THREE.BufferGeometry(), pos=new Float32Array(N*3), vy=new Float32Array(N);
+      for(let i=0;i<N;i++){ pos[i*3]=(Math.random()*2-1)*20; pos[i*3+1]=Math.random()*14; pos[i*3+2]=(Math.random()*2-1)*20; vy[i]=9+Math.random()*4; }
+      g.setAttribute("position",new THREE.BufferAttribute(pos,3));
+      const mat=new THREE.PointsMaterial({ map:rainTex, size:0.5, transparent:true, opacity:0.8, depthWrite:false, sizeAttenuation:true });
+      const pts=new THREE.Points(g,mat); pts.visible=false; scene.add(pts);
+      return { pts, pos, vy, N, g };
+    })();
+    function updateRain(dt, px, pz){
+      const show = weather==="rain" && currentZone==="outdoor";
+      rainSys.pts.visible=show;
+      if(!show) return;
+      rainSys.pts.position.set(px,0,pz);
+      const pos=rainSys.pos;
+      for(let i=0;i<rainSys.N;i++){
+        pos[i*3+1]-=rainSys.vy[i]*dt;
+        if(pos[i*3+1]<0){ pos[i*3+1]=14; pos[i*3]=(Math.random()*2-1)*20; pos[i*3+2]=(Math.random()*2-1)*20; }
+      }
+      rainSys.g.attributes.position.needsUpdate=true;
+    }
+    function updateTimeWeather(dt, px, pz){
+      totalGameHours += dt*(24/DAY_LEN_SEC);
+      weatherTimer-=dt; if(weatherTimer<=0){ weatherTimer=60+Math.random()*50; rollWeather(); }
+      if(currentZone==="outdoor") applyTimeWeatherLighting();
+      updateRain(dt, px, pz);
+      updateClockHUD();
     }
 
     // ============================================================
@@ -654,6 +767,12 @@
       rect(g,12,10,8,6,"#cfe8e0");                                    // ガラスの首
       rect(g,13,15,2,3,"#eafff8");                                    // ハイライト
     }, 32, 32); }
+    function makeInnIcon(){ return pixTex((g)=>{
+      rect(g,3,21,26,4,"#6b4a2c");                                    // ベッドの脚台
+      rect(g,2,12,28,9,"#8a5a54"); rect(g,2,12,28,2,"#a86a5e");       // 布団
+      ellip(g,9,12,6,5,"#f4e6d0");                                    // 枕
+      rect(g,20,4,2,11,"#caa64d"); ellip(g,21,4,3,3,"#ffe9a8");       // 常夜灯
+    }, 32, 32); }
 
     // 地面テクスチャ（草＋土の小道）
     function groundTexture(){
@@ -766,7 +885,7 @@
       const outerFloor=new THREE.Mesh(new THREE.PlaneGeometry(40,40),
         new THREE.MeshBasicMaterial({color:0x0c0810}));
       outerFloor.rotation.x=-Math.PI/2; outerFloor.position.set(ox,-0.05,oz); scene.add(outerFloor);
-      const wallMat=new THREE.MeshLambertMaterial({color:isShop?0xcdb98a:0xd8c9a0}), wallH=3.0;
+      const wallMat=new THREE.MeshLambertMaterial({color:isShop?0xcdb98a:(building.type==="inn"?0xe4d4c0:0xd8c9a0)}), wallH=3.0;
       const backWall=new THREE.Mesh(new THREE.BoxGeometry(halfW*2,wallH,0.2),wallMat);
       backWall.position.set(ox,wallH/2,oz-halfD); scene.add(backWall);
       const leftWall=new THREE.Mesh(new THREE.BoxGeometry(0.2,wallH,halfD*2),wallMat);
@@ -774,7 +893,7 @@
       const rightWall=new THREE.Mesh(new THREE.BoxGeometry(0.2,wallH,halfD*2),wallMat);
       rightWall.position.set(ox+halfW,wallH/2,oz); scene.add(rightWall);
       const rug=new THREE.Mesh(new THREE.PlaneGeometry(halfW*1.1,halfD*0.9),
-        new THREE.MeshBasicMaterial({color:building.type==="weapon"?0x8a4636:(building.type==="armor"?0x3f6f8a:0x6b5a44)}));
+        new THREE.MeshBasicMaterial({color:building.type==="weapon"?0x8a4636:(building.type==="armor"?0x3f6f8a:(building.type==="inn"?0x8a5a54:0x6b5a44))}));
       rug.rotation.x=-Math.PI/2; rug.position.set(ox,0.02,oz+0.3); scene.add(rug);
       const lamp=new THREE.Mesh(new THREE.SphereGeometry(0.22,10,8),
         new THREE.MeshBasicMaterial({color:0xffdf9a}));
@@ -785,6 +904,15 @@
           new THREE.MeshLambertMaterial({color:0x6b4a2c}));
         counter.position.set(ox,0.45,counterZ); scene.add(counter);
         addSolid(ox,counterZ,1.3);
+      } else if(building.type==="inn"){
+        const bedZ=oz-halfD+1.6, bedX=ox-halfW+1.5;
+        const bedFrame=new THREE.Mesh(new THREE.BoxGeometry(1.7,0.5,2.4), new THREE.MeshLambertMaterial({color:0x6b4a2c}));
+        bedFrame.position.set(bedX,0.25,bedZ); scene.add(bedFrame);
+        const mattress=new THREE.Mesh(new THREE.BoxGeometry(1.5,0.24,2.2), new THREE.MeshLambertMaterial({color:0x8a5a54}));
+        mattress.position.set(bedX,0.62,bedZ); scene.add(mattress);
+        const pillow=new THREE.Mesh(new THREE.BoxGeometry(1.3,0.2,0.6), new THREE.MeshLambertMaterial({color:0xf4e6d0}));
+        pillow.position.set(bedX,0.78,bedZ-0.85); scene.add(pillow);
+        addSolid(bedX,bedZ,1.1);
       }
       building.interior={ ox, oz, halfW, halfD, doorLocalZ };
       return building.interior;
@@ -969,9 +1097,10 @@
         "気をつけてな。無茶はするなよ、若いの。"
       ]});
 
-    // --- 武器屋・防具屋（建物＋看板アイコン。店主は建物の中にいる） ---
+    // --- 武器屋・防具屋・宿屋（建物＋看板アイコン。店主は建物の中にいる） ---
     makeHouse(-8.5,-6.5, 0.15, 0xd9b48a, 0x9a4636, {label:"武器屋", type:"weapon"});
     makeHouse( 8.5,-6.5,-0.15, 0xc9b8d0, 0x3f6f8a, {label:"防具屋", type:"armor"});
+    makeHouse( 16,-6, -0.3, 0xdccab0, 0x6b3f5a, {label:"宿屋", type:"inn"});
     const swordSign=makeBillboard(makeSwordIcon(),1.5,1.5); swordSign.position.set(-8.5,2.0,-3.0);
     const shieldSign=makeBillboard(makeShieldIcon(),1.5,1.5); shieldSign.position.set(8.5,2.0,-3.0);
     const toolBuilding=buildings.find(b=>b.type==="tool");
@@ -980,8 +1109,14 @@
       const potionSign=makeBillboard(makePotionIcon(),1.5,1.5);
       potionSign.position.set(toolBuilding.x+dx*2.6, 2.0, toolBuilding.z+dz*2.6);
     }
+    const innBuilding=buildings.find(b=>b.type==="inn");
+    if(innBuilding){
+      const dx=Math.sin(innBuilding.rot), dz=Math.cos(innBuilding.rot);
+      const innSign=makeBillboard(makeInnIcon(),1.5,1.5);
+      innSign.position.set(innBuilding.x+dx*2.6, 2.0, innBuilding.z+dz*2.6);
+    }
 
-    // --- 建物内部を生成し、武器屋・防具屋・道具屋には店主を配置 ---
+    // --- 建物内部を生成し、武器屋・防具屋・道具屋・宿屋には店主を配置 ---
     buildings.forEach((b,i)=>{
       makeInteriorRoom(b,i);
       if(b.type==="weapon"){
@@ -993,6 +1128,9 @@
       } else if(b.type==="tool"){
         addNPC({ x:b.interior.ox, z:b.interior.oz-b.interior.halfD+2.1, name:"道具屋 マーサ", shop:"tool",
           col:{hair:"#b0603a",body:"#4a8f6a",body2:"#356b4e"} });
+      } else if(b.type==="inn"){
+        addNPC({ x:b.interior.ox, z:b.interior.oz-b.interior.halfD+2.1, name:"宿屋 ノラ", shop:"inn",
+          col:{hair:"#e8d0a0",body:"#8a5a54",body2:"#6a3e3a"} });
       }
     });
 
@@ -1566,6 +1704,19 @@
       player.accessory=it.accIdx;
       updateHUD(); buildToolShopList(); saveGame(false);
     }
+    // --- 宿屋（会話の代わりに直接休む。HP全回復＋翌朝まで時間を進める） ---
+    const INN_COST=20;
+    function restAtInn(){
+      if(player.gold<INN_COST){ showBanner("宿屋 ノラ","お金が足りないみたいだ…（"+INN_COST+"G）"); return; }
+      player.gold-=INN_COST;
+      player.hp=player.maxHp;
+      totalGameHours=(Math.floor(totalGameHours/24)+1)*24+7;   // 翌朝7時まで眠る
+      rollWeather(true);
+      if(currentZone==="outdoor") applyTimeWeatherLighting();
+      updateClockHUD();
+      showBanner("ぐっすり眠った","HP全回復・"+clockLabel());
+      updateHUD(); saveGame(false);
+    }
 
     // --- セーブ／オートセーブ（localStorage） ---
     const SAVE_KEY="lumina_save_v1";
@@ -1585,6 +1736,7 @@
           weapon:player.weapon, armor:player.armor, ownedW:player.ownedW, ownedA:player.ownedA,
           accessory:player.accessory, ownedAcc:player.ownedAcc, potions:player.potions,
           quests:player.quests, greeted:Array.from(greetedSet), dungeonBossDefeated,
+          totalGameHours, weather,
           x:pos.x, z:pos.z, savedAt:Date.now() };
         localStorage.setItem(SAVE_KEY, JSON.stringify(data));
         lastSaveAt=data.savedAt; updateSaveStatusLabel();
@@ -1605,10 +1757,13 @@
           x:(typeof d.x==="number")?d.x:0, z:(typeof d.z==="number")?d.z:7 });
         if(Array.isArray(d.greeted)){ greetedSet.clear(); d.greeted.forEach(n=>greetedSet.add(n)); }
         if(d.dungeonBossDefeated) dungeonBossDefeated=true;
+        if(typeof d.totalGameHours==="number") totalGameHours=d.totalGameHours;
+        if(typeof d.weather==="string") weather=d.weather;
         deriveStats();
         player.hp=(typeof d.hp==="number")?Math.min(d.hp,player.maxHp):player.maxHp;
         lastSaveAt=d.savedAt||0;
-        rebuildHeroTexture(); updateHUD();
+        rebuildHeroTexture(); updateHUD(); updateClockHUD();
+        if(currentZone==="outdoor") applyTimeWeatherLighting();
         return true;
       }catch(e){ return false; }
     }
@@ -1765,7 +1920,7 @@
     // --- ミニマップ：現在地とクエストの目的地を示す ---
     const mmCanvas=document.getElementById("minimap"), mmCtx=mmCanvas.getContext("2d"), mmLabel=document.getElementById("minimap-label");
     const MM_C=66, MM_R=60;
-    const SHOP_MM_COLORS={ weapon:"#e0663a", armor:"#5a8fc9", tool:"#5fae64" };
+    const SHOP_MM_COLORS={ weapon:"#e0663a", armor:"#5a8fc9", tool:"#5fae64", inn:"#c97fd4" };
     // 中心（村）付近を広げ、外側（フィールド）を圧縮する半径べき乗マッピング。村の中の店が見分けやすくなる
     function mmRadius(worldDist){ return Math.pow(worldDist/WORLD,0.58)*MM_R; }
     function mmPoint(x,z){
@@ -1856,7 +2011,8 @@
         if(nearTarget.type==="chest"){ openChest(nearTarget.chest); return; }
         if(GREET_NAMES.has(nearTarget.name) && !greetedSet.has(nearTarget.name)){
           greetedSet.add(nearTarget.name); progressQuest("greet",1); }
-        if(nearTarget.shop) openShop(nearTarget.shop, nearTarget.name);
+        if(nearTarget.shop==="inn") restAtInn();
+        else if(nearTarget.shop) openShop(nearTarget.shop, nearTarget.name);
         else {
           if(nearTarget.name==="門番 ダグ") acceptDungeonQuests();
           openConvo(nearTarget.name, nearTarget.lines);
@@ -1958,6 +2114,7 @@
       if(bannerT>0){ bannerT-=dt; if(bannerT<=0) banner.style.opacity="0"; }
       if(dungeonFloor){ torchLights.forEach((l,i)=>{ if(l.intensity>0) l.intensity=2.8+Math.sin(t*9+i*2)*0.4+Math.random()*0.15; }); }
       updateLantern(t);
+      updateTimeWeather(dt, player.x, player.z);
 
       // ダンジョン入口・階段は歩いて踏むだけで自動的に切り替わる（攻撃ボタンと場所を取り合わないように）
       transitionCooldown=Math.max(0,transitionCooldown-dt);
@@ -1993,7 +2150,8 @@
         actBtn.classList.add("show"); actBtn.classList.remove("combat");
         actBtn.textContent = nearTarget.type==="door" ? "はいる" : nearTarget.type==="exit" ? "でる"
           : nearTarget.type==="chest" ? "あける"
-          : nearTarget.shop ? "みせ" : (examinables.some(e=>e.name===nearTarget.name)?"しらべる":"はなす");
+          : nearTarget.shop==="inn" ? "やすむ" : nearTarget.shop ? "みせ"
+          : (examinables.some(e=>e.name===nearTarget.name)?"しらべる":"はなす");
         const s=worldToScreen(nearTarget.x,2.6,nearTarget.z);
         if(s.vis){ promptEl.style.display="block"; promptEl.style.left=s.x+"px"; promptEl.style.top=s.y+"px"; promptEl.textContent="！"; }
       } else {
