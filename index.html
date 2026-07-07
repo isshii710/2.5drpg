@@ -201,6 +201,15 @@
     border:1px solid var(--gold-dim); box-shadow:0 4px 16px rgba(0,0,0,.4); }
   #menuBtn:active{ transform:scale(.94); }
 
+  /* ---- ミニマップ ---- */
+  #minimap-wrap{ position:fixed; top:calc(env(safe-area-inset-top,0) + 62px); right:calc(env(safe-area-inset-right,0) + 12px);
+    z-index:12; width:132px; height:132px; pointer-events:none; }
+  #minimap{ width:132px; height:132px; border-radius:50%; display:block;
+    border:2px solid var(--gold-dim); box-shadow:0 4px 16px rgba(0,0,0,.45); background:rgba(10,8,16,.55); }
+  #minimap-label{ position:absolute; inset:0; display:none; align-items:center; justify-content:center; text-align:center;
+    border-radius:50%; background:rgba(10,8,16,.78); color:var(--parch); font-size:11px; letter-spacing:.04em;
+    padding:8px; line-height:1.5; }
+
   /* ---- メニュー画面（ステータス・装備・セーブ） ---- */
   #menu{ position:fixed; inset:0; z-index:41; display:none; align-items:center; justify-content:center;
     background:rgba(8,6,16,.62); backdrop-filter:blur(2px); -webkit-backdrop-filter:blur(2px); }
@@ -289,6 +298,10 @@
   </div></div>
 
   <div id="menuBtn">☰</div>
+  <div id="minimap-wrap">
+    <canvas id="minimap" width="132" height="132"></canvas>
+    <div id="minimap-label"></div>
+  </div>
   <div id="menu"><div class="panel">
     <div class="head">メニュー</div>
     <div id="menu-body">
@@ -744,11 +757,60 @@
     const flowerTex=[makeFlower("#e86a8a"),makeFlower("#e6c268"),makeFlower("#9a7fe0")];
     const FIELD_R=25, WORLD=56, FOREST_R=54;   // 村(安全)半径 / 端 / 森の壁
     function dist0(x,z){ return Math.hypot(x,z); }
-    function scatterTree(x,z,s){ const t=makeBillboard(treeTex,4.6*(s||1),6.1*(s||1)); t.position.set(x,0,z);
-      addSolid(x,z,1.0*(s||1)); addShadow(x,z,3.6*(s||1)); }
-    // 村を囲む森の壁（外周・密）
-    for(let a=0;a<Math.PI*2;a+=Math.PI/24){ const r=FOREST_R+Math.random()*3-1;
-      scatterTree(Math.cos(a)*r, Math.sin(a)*r, 1.1+Math.random()*0.3); }
+    function scatterTree(x,z,s,rOverride){ const t=makeBillboard(treeTex,4.6*(s||1),6.1*(s||1)); t.position.set(x,0,z);
+      addSolid(x,z,rOverride!=null?rOverride:1.0*(s||1)); addShadow(x,z,3.6*(s||1)); }
+    // 崖（岩の壁）：見える形でフィールドの外を塞ぐ
+    function scatterCliff(x,z){
+      const g=new THREE.Group(); g.position.set(x,0,z);
+      const rockMatA=new THREE.MeshLambertMaterial({color:0x6f6a68});
+      const rockMatB=new THREE.MeshLambertMaterial({color:0x86807c});
+      const n=2+((Math.random()*2)|0);
+      for(let i=0;i<n;i++){
+        const w=1.6+Math.random()*1.6, h=3.2+Math.random()*3.4, d=1.6+Math.random()*1.3;
+        const rock=new THREE.Mesh(new THREE.BoxGeometry(w,h,d), i%2?rockMatA:rockMatB);
+        rock.position.set((Math.random()-0.5)*2.6, h/2, (Math.random()-0.5)*1.4);
+        rock.rotation.y=Math.random()*Math.PI; g.add(rock);
+      }
+      scene.add(g); addSolid(x,z,2.7); addShadow(x,z,5.2);
+    }
+    // 川（渡れない水面）：見える形でフィールドの外を塞ぐ
+    function scatterRiver(x,z){
+      const w=new THREE.Mesh(new THREE.PlaneGeometry(6,6), new THREE.MeshBasicMaterial({color:0x4f92c9, transparent:true, opacity:0.85}));
+      w.rotation.x=-Math.PI/2; w.position.set(x,0.06,z); scene.add(w);
+      if(Math.random()<0.35){ const rk=makeBillboard(rockTex,1.7,1.5); rk.position.set(x+(Math.random()-0.5)*2.2,0,z+(Math.random()-0.5)*2.2); }
+      addSolid(x,z,2.6);
+    }
+    // 村を囲む外周：方角ごとに木々・崖・川を使い分け、どちら向きも視覚的に塞がれた境界にする
+    // （ダンジョン入口の方角＝北は「灯火の森」の世界観に合わせて木々のまま）
+    const TREE_CENTER=4.712, CLIFF_CENTER=TREE_CENTER+Math.PI*2/3, RIVER_CENTER=TREE_CENTER+Math.PI*4/3;
+    function angDist(a,b){ const d=Math.abs(a-b)%(Math.PI*2); return Math.min(d,Math.PI*2-d); }
+    function terrainKind(a){
+      const dt=angDist(a,TREE_CENTER), dc=angDist(a,CLIFF_CENTER), dr=angDist(a,RIVER_CENTER);
+      if(dt<=dc && dt<=dr) return "tree"; if(dc<=dr) return "cliff"; return "river";
+    }
+    for(let a=0;a<Math.PI*2;a+=Math.PI/40){
+      const r=FOREST_R+Math.random()*2-1, x=Math.cos(a)*r, z=Math.sin(a)*r, kind=terrainKind(a);
+      // 幹の当たり判定は見た目より太めにして、木立の間からすり抜けられないようにする
+      if(kind==="tree") scatterTree(x,z,1.1+Math.random()*0.3,2.4);
+      else if(kind==="cliff") scatterCliff(x,z);
+      else scatterRiver(x,z);
+    }
+    // --- 村の柵：安全地帯の境目を見える形で示す（十字路の4方向だけ門を開けておく） ---
+    function makeFenceTex(){ return pixTex((g)=>{
+      const post="#5a3c22", rail="#8a6a44";
+      rect(g,2,3,3,20,post); rect(g,19,3,3,20,post);
+      rect(g,1,6,22,3,rail); rect(g,1,14,22,3,rail);
+    },24,24); }
+    const fenceTex=makeFenceTex();
+    const FENCE_R=23, GATE_HALF_ANGLE=0.16;
+    const GATE_ANGLES=[0, Math.PI/2, Math.PI, Math.PI*1.5];
+    function nearFenceGate(a){ return GATE_ANGLES.some(g=>angDist(a,g)<GATE_HALF_ANGLE); }
+    for(let a=0;a<Math.PI*2;a+=Math.PI/44){
+      if(nearFenceGate(a)) continue;
+      const x=Math.cos(a)*FENCE_R, z=Math.sin(a)*FENCE_R;
+      const f=makeBillboard(fenceTex,2.4,2.0); f.position.set(x,0,z);
+      addSolid(x,z,1.0);
+    }
     // 村の縁を軽く縁取る木（囲い込みすぎない）
     [[-19,3],[19,4],[-6,-20],[8,19],[-20,-14],[18,-15],[-16,17],[15,16]].forEach(p=>scatterTree(p[0],p[1]));
     // フィールドに点在する木と岩（隠れられる程度）
@@ -1247,7 +1309,9 @@
         player.x=Math.max(room.ox-room.halfW+0.4, Math.min(room.ox+room.halfW-0.4, player.x));
         player.z=Math.max(room.oz-room.halfD+0.3, Math.min(room.oz+room.halfD-0.3, player.z));
       } else {
-        player.x=Math.max(-WORLD,Math.min(WORLD,player.x)); player.z=Math.max(-WORLD,Math.min(WORLD,player.z));
+        // 円形の境界（木々・崖・川のリングと同じ半径）。矩形クランプだと対角線上に隙間ができるため使わない
+        const dc=dist0(player.x,player.z);
+        if(dc>WORLD){ const k=WORLD/dc; player.x*=k; player.z*=k; }
       }
     }
     function faceVec(){ switch(player.facing){ case "up":return[0,-1]; case "down":return[0,1]; case "left":return[-1,0]; default:return[1,0]; } }
@@ -1510,6 +1574,56 @@
     let nearTarget=null;
     const GREET_NAMES=new Set(["村長 オルヴァ","見習い リィナ","門番 ダグ","道具屋 マーサ"]);
     const greetedSet=new Set();
+
+    // --- ミニマップ：現在地とクエストの目的地を示す ---
+    const mmCanvas=document.getElementById("minimap"), mmCtx=mmCanvas.getContext("2d"), mmLabel=document.getElementById("minimap-label");
+    const MM_C=66, MM_R=60;
+    function mmPoint(x,z){ return { mx:MM_C+(x/WORLD)*MM_R, my:MM_C+(z/WORLD)*MM_R }; }
+    function getQuestTargetPos(){
+      if(player.quests.greet.status==="active"){
+        const remaining=npcs.filter(n=>GREET_NAMES.has(n.name) && !greetedSet.has(n.name));
+        if(remaining.length){
+          let best=remaining[0], bd=Infinity;
+          remaining.forEach(n=>{ const d=(n.x-player.x)**2+(n.z-player.z)**2; if(d<bd){ bd=d; best=n; } });
+          return { x:best.x, z:best.z };
+        }
+      }
+      const dungeonIds=["floor1","floor2","floor3","floor4","boss"];
+      if(dungeonIds.some(id=>player.quests[id].status==="locked")){
+        const dag=npcs.find(n=>n.name==="門番 ダグ"); if(dag) return { x:dag.x, z:dag.z };
+      }
+      if(dungeonIds.some(id=>player.quests[id].status==="active")) return { x:dungeonEntrance.x, z:dungeonEntrance.z };
+      return null;
+    }
+    function drawMinimap(){
+      mmCtx.clearRect(0,0,132,132);
+      mmCtx.beginPath(); mmCtx.arc(MM_C,MM_C,64,0,Math.PI*2); mmCtx.fillStyle="rgba(35,26,20,0.55)"; mmCtx.fill();
+      mmCtx.beginPath(); mmCtx.arc(MM_C,MM_C,(FOREST_R/WORLD)*MM_R,0,Math.PI*2);
+      mmCtx.strokeStyle="rgba(140,190,120,0.4)"; mmCtx.lineWidth=3; mmCtx.stroke();
+      mmCtx.beginPath(); mmCtx.arc(MM_C,MM_C,(FIELD_R/WORLD)*MM_R,0,Math.PI*2);
+      mmCtx.fillStyle="rgba(230,194,104,0.10)"; mmCtx.fill();
+      mmCtx.strokeStyle="rgba(230,194,104,0.45)"; mmCtx.lineWidth=1; mmCtx.stroke();
+      mmCtx.beginPath(); mmCtx.arc(MM_C,MM_C,2.6,0,Math.PI*2); mmCtx.fillStyle="#9fe0f0"; mmCtx.fill();
+      const dp=mmPoint(dungeonEntrance.x,dungeonEntrance.z);
+      mmCtx.beginPath(); mmCtx.arc(dp.mx,dp.my,3,0,Math.PI*2);
+      mmCtx.fillStyle="#2a2430"; mmCtx.fill(); mmCtx.strokeStyle="#e6c268"; mmCtx.lineWidth=1; mmCtx.stroke();
+      const qt=getQuestTargetPos();
+      if(qt){
+        const qp=mmPoint(qt.x,qt.z), pulse=2.2+Math.sin(performance.now()/220)*1.1;
+        mmCtx.beginPath(); mmCtx.arc(qp.mx,qp.my,pulse+2.6,0,Math.PI*2);
+        mmCtx.strokeStyle="rgba(230,194,104,0.9)"; mmCtx.lineWidth=1.6; mmCtx.stroke();
+        mmCtx.beginPath(); mmCtx.arc(qp.mx,qp.my,2.2,0,Math.PI*2); mmCtx.fillStyle="#ffd76b"; mmCtx.fill();
+      }
+      if(!indoorHouse && !dungeonFloor){
+        const pp=mmPoint(player.x,player.z), [fx,fz]=faceVec(), ang=Math.atan2(fx,fz);
+        mmCtx.save(); mmCtx.translate(pp.mx,pp.my); mmCtx.rotate(ang);
+        mmCtx.beginPath(); mmCtx.moveTo(0,-5); mmCtx.lineTo(3.4,4); mmCtx.lineTo(-3.4,4); mmCtx.closePath();
+        mmCtx.fillStyle="#7fe6d6"; mmCtx.fill(); mmCtx.restore();
+      }
+      mmLabel.textContent = indoorHouse ? indoorHouse.label+"\n（屋内）" : dungeonFloor ? "地下遺跡\n"+dungeonFloor+"階" : "";
+      mmLabel.style.display = (indoorHouse||dungeonFloor) ? "flex" : "none";
+      mmLabel.style.whiteSpace="pre-line";
+    }
     function tryAct(){
       if(convo){ advanceConvo(); return; }
       if(shopOpen || menuOpen) return;
@@ -1654,6 +1768,7 @@
       // 回避ボタン（フィールドでのみ）
       dodgeBtn.style.display = ((inField||dungeonFloor) && !convo && !shopOpen && !menuOpen && !player.dead) ? "flex" : "none";
       dodgeBtn.classList.toggle("cool", player.dodgeCd>0);
+      drawMinimap();
 
       renderer.render(scene,camera);
       requestAnimationFrame(loop);
