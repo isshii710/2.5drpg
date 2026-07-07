@@ -203,12 +203,17 @@
 
   /* ---- ミニマップ ---- */
   #minimap-wrap{ position:fixed; top:calc(env(safe-area-inset-top,0) + 62px); right:calc(env(safe-area-inset-right,0) + 12px);
-    z-index:12; width:132px; height:132px; pointer-events:none; }
+    z-index:12; width:132px; pointer-events:none; display:flex; flex-direction:column; align-items:center; gap:6px; }
+  #minimap-inner{ position:relative; width:132px; height:132px; }
   #minimap{ width:132px; height:132px; border-radius:50%; display:block;
     border:2px solid var(--gold-dim); box-shadow:0 4px 16px rgba(0,0,0,.45); background:rgba(10,8,16,.55); }
   #minimap-label{ position:absolute; inset:0; display:none; align-items:center; justify-content:center; text-align:center;
     border-radius:50%; background:rgba(10,8,16,.78); color:var(--parch); font-size:11px; letter-spacing:.04em;
     padding:8px; line-height:1.5; }
+  #minimap-legend{ display:flex; gap:9px; background:rgba(10,8,16,.75); border:1px solid var(--gold-dim);
+    border-radius:8px; padding:4px 9px; }
+  #minimap-legend span{ display:flex; align-items:center; gap:4px; font-size:10px; color:var(--parch); white-space:nowrap; }
+  #minimap-legend i{ width:7px; height:7px; border-radius:50%; display:inline-block; }
 
   /* ---- メニュー画面（ステータス・装備・セーブ） ---- */
   #menu{ position:fixed; inset:0; z-index:41; display:none; align-items:center; justify-content:center;
@@ -306,8 +311,15 @@
 
   <div id="menuBtn">☰</div>
   <div id="minimap-wrap">
-    <canvas id="minimap" width="132" height="132"></canvas>
-    <div id="minimap-label"></div>
+    <div id="minimap-inner">
+      <canvas id="minimap" width="132" height="132"></canvas>
+      <div id="minimap-label"></div>
+    </div>
+    <div id="minimap-legend">
+      <span><i style="background:#e0663a"></i>武器</span>
+      <span><i style="background:#5a8fc9"></i>防具</span>
+      <span><i style="background:#5fae64"></i>道具</span>
+    </div>
   </div>
   <div id="menu"><div class="panel">
     <div class="head">メニュー</div>
@@ -372,14 +384,15 @@
     const SKY = 0xf3c98b;                 // 夕方寄りの暖色
     scene.fog = new THREE.Fog(0xe9b98a, 32, 96);   // 遠景を霞ませてジオラマ感
 
-    const renderer = new THREE.WebGLRenderer({ antialias:true });
+    const renderer = new THREE.WebGLRenderer({ antialias:true, logarithmicDepthBuffer:true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
     renderer.setSize(innerWidth, innerHeight);
     renderer.outputEncoding = THREE.sRGBEncoding;
     renderer.setClearColor(SKY, 1);
     document.getElementById("game").appendChild(renderer.domElement);
 
-    const camera = new THREE.PerspectiveCamera(30, innerWidth/innerHeight, 0.1, 220);
+    // near平面を離しfar/near比を抑える（対数深度バッファと合わせて、移動時のチラつき＝Zファイティング対策）
+    const camera = new THREE.PerspectiveCamera(30, innerWidth/innerHeight, 1, 220);
     const CAM_OFF = new THREE.Vector3(0, 10.5, 12.5);   // 見下ろし角のHD-2D構図
 
     // 空グラデーション背景
@@ -689,9 +702,9 @@
       const wall=new THREE.Mesh(new THREE.BoxGeometry(4.4,3,4),
         new THREE.MeshLambertMaterial({color:wallCol}));
       wall.position.y=1.5; g.add(wall);
-      // 木組み
+      // 木組み（壁の天端・屋根の底面と面が重ならないよう、少し内側に収める＝Zファイティング対策）
       const trim=new THREE.MeshLambertMaterial({color:0x6b4a2c});
-      [[-2.2,1.5,0,0.15,3,4],[2.2,1.5,0,0.15,3,4],[0,3,0,4.4,0.16,4]].forEach(p=>{
+      [[-2.2,1.5,0,0.15,3,4],[2.2,1.5,0,0.15,3,4],[0,2.86,0,4.36,0.16,3.96]].forEach(p=>{
         const b=new THREE.Mesh(new THREE.BoxGeometry(p[3],p[4],p[5]),trim); b.position.set(p[0],p[1],p[2]); g.add(b);
       });
       // 屋根（四角錐）
@@ -1684,7 +1697,14 @@
     // --- ミニマップ：現在地とクエストの目的地を示す ---
     const mmCanvas=document.getElementById("minimap"), mmCtx=mmCanvas.getContext("2d"), mmLabel=document.getElementById("minimap-label");
     const MM_C=66, MM_R=60;
-    function mmPoint(x,z){ return { mx:MM_C+(x/WORLD)*MM_R, my:MM_C+(z/WORLD)*MM_R }; }
+    const SHOP_MM_COLORS={ weapon:"#e0663a", armor:"#5a8fc9", tool:"#5fae64" };
+    // 中心（村）付近を広げ、外側（フィールド）を圧縮する半径べき乗マッピング。村の中の店が見分けやすくなる
+    function mmRadius(worldDist){ return Math.pow(worldDist/WORLD,0.58)*MM_R; }
+    function mmPoint(x,z){
+      const d=Math.hypot(x,z)||0.0001, ang=Math.atan2(z,x);
+      const md=mmRadius(d);
+      return { mx:MM_C+Math.cos(ang)*md, my:MM_C+Math.sin(ang)*md };
+    }
     function getQuestTargetPos(){
       if(player.quests.greet.status==="active"){
         const remaining=npcs.filter(n=>GREET_NAMES.has(n.name) && !greetedSet.has(n.name));
@@ -1701,15 +1721,44 @@
       if(dungeonIds.some(id=>player.quests[id].status==="active")) return { x:dungeonEntrance.x, z:dungeonEntrance.z };
       return null;
     }
+    // 店の位置が近すぎて重なる場合は、平均位置の周りに少しだけ広げて描く（見分けやすさ優先）
+    function drawShopIcons(){
+      const pts=buildings.filter(b=>SHOP_MM_COLORS[b.type]).map(b=>({ type:b.type, p:mmPoint(b.x,b.z) }));
+      const used=new Array(pts.length).fill(false), CLUSTER_PX=6.5;
+      for(let i=0;i<pts.length;i++){
+        if(used[i]) continue;
+        const cluster=[i]; used[i]=true;
+        for(let j=i+1;j<pts.length;j++){
+          if(used[j]) continue;
+          if(Math.hypot(pts[i].p.mx-pts[j].p.mx, pts[i].p.my-pts[j].p.my)<CLUSTER_PX){ cluster.push(j); used[j]=true; }
+        }
+        if(cluster.length===1){
+          drawShopDot(pts[i].p.mx, pts[i].p.my, SHOP_MM_COLORS[pts[i].type], 2.4);
+        } else {
+          let cx=0,cy=0; cluster.forEach(k=>{ cx+=pts[k].p.mx; cy+=pts[k].p.my; });
+          cx/=cluster.length; cy/=cluster.length;
+          cluster.forEach((k,idx)=>{
+            const a=(idx/cluster.length)*Math.PI*2-Math.PI/2;
+            drawShopDot(cx+Math.cos(a)*4.2, cy+Math.sin(a)*4.2, SHOP_MM_COLORS[pts[k].type], 2.0);
+          });
+        }
+      }
+    }
+    function drawShopDot(mx,my,col,r){
+      mmCtx.beginPath(); mmCtx.arc(mx,my,r,0,Math.PI*2);
+      mmCtx.fillStyle=col; mmCtx.fill();
+      mmCtx.strokeStyle="rgba(255,255,255,0.85)"; mmCtx.lineWidth=0.7; mmCtx.stroke();
+    }
     function drawMinimap(){
       mmCtx.clearRect(0,0,132,132);
       mmCtx.beginPath(); mmCtx.arc(MM_C,MM_C,64,0,Math.PI*2); mmCtx.fillStyle="rgba(35,26,20,0.55)"; mmCtx.fill();
-      mmCtx.beginPath(); mmCtx.arc(MM_C,MM_C,(FOREST_R/WORLD)*MM_R,0,Math.PI*2);
+      mmCtx.beginPath(); mmCtx.arc(MM_C,MM_C,mmRadius(FOREST_R),0,Math.PI*2);
       mmCtx.strokeStyle="rgba(140,190,120,0.4)"; mmCtx.lineWidth=3; mmCtx.stroke();
-      mmCtx.beginPath(); mmCtx.arc(MM_C,MM_C,(FIELD_R/WORLD)*MM_R,0,Math.PI*2);
+      mmCtx.beginPath(); mmCtx.arc(MM_C,MM_C,mmRadius(FIELD_R),0,Math.PI*2);
       mmCtx.fillStyle="rgba(230,194,104,0.10)"; mmCtx.fill();
       mmCtx.strokeStyle="rgba(230,194,104,0.45)"; mmCtx.lineWidth=1; mmCtx.stroke();
       mmCtx.beginPath(); mmCtx.arc(MM_C,MM_C,2.6,0,Math.PI*2); mmCtx.fillStyle="#9fe0f0"; mmCtx.fill();
+      drawShopIcons();
       const dp=mmPoint(dungeonEntrance.x,dungeonEntrance.z);
       mmCtx.beginPath(); mmCtx.arc(dp.mx,dp.my,3,0,Math.PI*2);
       mmCtx.fillStyle="#2a2430"; mmCtx.fill(); mmCtx.strokeStyle="#e6c268"; mmCtx.lineWidth=1; mmCtx.stroke();
