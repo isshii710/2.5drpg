@@ -229,6 +229,15 @@
   #menu .glist .item .ic{ font-size:18px; width:22px; text-align:center; }
   #menu .glist .item .nm{ flex:1; font-size:13px; }
   #menu .glist .item .eq{ font-size:11px; color:var(--light); }
+  #menu .glist .item.quest{ flex-direction:column; align-items:stretch; gap:3px; cursor:default; }
+  #menu .glist .item.quest.locked{ opacity:.45; }
+  #menu .glist .item.quest .qhead{ display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  #menu .glist .item.quest .qtitle{ font-size:13px; }
+  #menu .glist .item.quest .qdesc{ font-size:11px; color:#bcae90; }
+  #menu .glist .item.quest .qstatus{ font-size:11px; padding:2px 9px; border-radius:999px; white-space:nowrap; }
+  #menu .glist .item.quest .qstatus.active{ background:rgba(127,230,214,.18); color:var(--light); }
+  #menu .glist .item.quest .qstatus.done{ background:rgba(230,194,104,.2); color:var(--gold); }
+  #menu .glist .item.quest .qstatus.locked{ background:rgba(255,255,255,.08); color:#9a8fb0; }
   #menu-save-row{ display:flex; align-items:center; gap:12px; margin:8px 0 16px; }
   #menu-save-btn{ padding:10px 18px; border:none; border-radius:10px; cursor:pointer;
     font-family:"Hiragino Mincho ProN",serif; color:var(--ink); letter-spacing:.1em; font-size:14px;
@@ -298,6 +307,9 @@
       <div class="sec-title">防具（所持品・タップで装備）</div>
       <div class="glist" id="m-armor-list"></div>
 
+      <div class="sec-title">クエスト</div>
+      <div class="glist" id="m-quest-list"></div>
+
       <div class="sec-title">セーブ</div>
       <div id="menu-save-row">
         <button id="menu-save-btn">セーブする</button>
@@ -342,19 +354,35 @@
     const CAM_OFF = new THREE.Vector3(0, 10.5, 12.5);   // 見下ろし角のHD-2D構図
 
     // 空グラデーション背景
+    let skyTex=null;
     (function(){
       const c=document.createElement("canvas"); c.width=8; c.height=256; const g=c.getContext("2d");
       const grd=g.createLinearGradient(0,0,0,256);
       grd.addColorStop(0,"#8fb8e8"); grd.addColorStop(.45,"#e9c79a"); grd.addColorStop(1,"#f6d9a6");
       g.fillStyle=grd; g.fillRect(0,0,8,256);
-      const tex=new THREE.CanvasTexture(c); tex.encoding=THREE.sRGBEncoding; scene.background=tex;
+      skyTex=new THREE.CanvasTexture(c); skyTex.encoding=THREE.sRGBEncoding; scene.background=skyTex;
     })();
 
-    // ライト（暖色の日差し＋空の反射光）
+    // ライト（暖色の日差し＋空の反射光）。屋内・ダンジョンではzoneLightingで暗く落とす
     const hemi = new THREE.HemisphereLight(0xfff1d6, 0x4a5a4a, 0.95); scene.add(hemi);
     const sun = new THREE.DirectionalLight(0xffdca0, 1.15);
     sun.position.set(-14, 22, 10); scene.add(sun);
-    scene.add(new THREE.AmbientLight(0x6a6480, 0.35));
+    const ambient = new THREE.AmbientLight(0x6a6480, 0.35); scene.add(ambient);
+    const LIGHT_BASE={ hemi:0.95, sun:1.15, ambient:0.35 };
+    const DUNGEON_BG=new THREE.Color(0x0a0810);
+    // ゾーン（村・屋内・ダンジョン）に応じて明るさ・空・霧を切り替える
+    function setZoneVisuals(zone){
+      if(zone==="dungeon"){
+        hemi.intensity=0.10; sun.intensity=0.04; ambient.intensity=0.08;
+        scene.background=DUNGEON_BG; scene.fog.color.set(0x05040a); scene.fog.near=6; scene.fog.far=30;
+      } else if(zone==="indoor"){
+        hemi.intensity=0.55; sun.intensity=0.30; ambient.intensity=0.24;
+        scene.background=skyTex; scene.fog.color.set(0xe9b98a); scene.fog.near=32; scene.fog.far=96;
+      } else {
+        hemi.intensity=LIGHT_BASE.hemi; sun.intensity=LIGHT_BASE.sun; ambient.intensity=LIGHT_BASE.ambient;
+        scene.background=skyTex; scene.fog.color.set(0xe9b98a); scene.fog.near=32; scene.fog.far=96;
+      }
+    }
 
     // ============================================================
     //  ドット絵テクスチャ生成（procedural pixel-art）
@@ -737,6 +765,22 @@
       const x=Math.cos(a)*r,z=Math.sin(a)*r;
       const f=makeBillboard(flowerTex[i%3],0.9,1.0); f.position.set(x,0,z); }
 
+    // --- 遠景の山（森の外周のさらに向こう。歩いては届かないジオラマの背景） ---
+    const MOUNTAIN_COLORS=[0x6b6a72,0x7a7268,0x5f6a5a];
+    function makeMountain(x,z,h,r,col){
+      const mesh=new THREE.Mesh(new THREE.ConeGeometry(r,h,6), new THREE.MeshLambertMaterial({color:col}));
+      mesh.position.set(x,h/2,z); mesh.rotation.y=Math.random()*Math.PI; scene.add(mesh);
+      if(h>22){ const snowH=h*0.3;
+        const snow=new THREE.Mesh(new THREE.ConeGeometry(r*0.42,snowH,6), new THREE.MeshBasicMaterial({color:0xf4f0ea}));
+        snow.position.set(x,h-snowH*0.35,z); snow.rotation.y=mesh.rotation.y; scene.add(snow); }
+    }
+    for(let a=0;a<Math.PI*2;a+=Math.PI/10){
+      const r=68+Math.random()*18, h=16+Math.random()*14, rad=9+Math.random()*6;
+      makeMountain(Math.cos(a)*r,Math.sin(a)*r,h,rad,MOUNTAIN_COLORS[(Math.random()*3)|0]);
+      if(Math.random()<0.6){ const a2=a+(Math.random()-0.5)*0.2, r2=r+6+Math.random()*10;
+        makeMountain(Math.cos(a2)*r2,Math.sin(a2)*r2,h*0.7,rad*0.8,MOUNTAIN_COLORS[(Math.random()*3)|0]); }
+    }
+
     // --- 装備の見た目（武器：手元の形状／防具：胴体の配色）武器・防具データ配列とインデックスを揃える ---
     const WEAPON_VISUAL=[
       {kind:"club",      col:"#6b4a2c", hi:"#8a6a3a", hilt:"#4a3320", len:9,  width:3, dual:false},
@@ -865,6 +909,36 @@
       player.maxHp=player.baseMaxHp+a.hp; player.atk=player.baseAtk+w.atk; player.def=player.baseDef+a.def;
       if(player.hp>player.maxHp) player.hp=player.maxHp; }
 
+    // --- クエストログ（受注履歴・進行状況） ---
+    const QUESTS=[
+      { id:"greet", title:"村人とのあいさつ", desc:"村長・見習い・門番・道具屋と話す", target:4, locked:false },
+      { id:"floor1", title:"地下遺跡・1階への到達", desc:"ダグに聞いた地下遺跡へ踏み入る", target:1, locked:true },
+      { id:"floor2", title:"地下遺跡・2階への到達", desc:"さらに深くへ", target:1, locked:true },
+      { id:"floor3", title:"地下遺跡・3階への到達", desc:"空気が重くなってきた", target:1, locked:true },
+      { id:"floor4", title:"地下遺跡・最深部への到達", desc:"何かが待ち構えている", target:1, locked:true },
+      { id:"boss", title:"封じられし者", desc:"最深部の主を討伐する", target:1, locked:true }
+    ];
+    player.quests={};
+    QUESTS.forEach(q=>{ player.quests[q.id]={ status:q.locked?"locked":"active", progress:0 }; });
+    function progressQuest(id,amount){
+      const def=QUESTS.find(q=>q.id===id), st=player.quests[id];
+      if(!def || !st || st.status!=="active") return;
+      st.progress=Math.min(def.target, st.progress+amount);
+      if(st.progress>=def.target){ st.status="done"; onQuestComplete(def); }
+      if(menuOpen) updateMenu();
+    }
+    function acceptDungeonQuests(){
+      let changed=false;
+      ["floor1","floor2","floor3","floor4","boss"].forEach(id=>{
+        if(player.quests[id].status==="locked"){ player.quests[id].status="active"; changed=true; } });
+      if(changed){ floatText(player.x,player.z,"クエストを受注した","#e6c268"); if(menuOpen) updateMenu(); saveGame(false); }
+    }
+    function onQuestComplete(def){
+      addGold(30); addExp(10);
+      floatText(player.x,player.z,"クエスト達成："+def.title,"#e6c268",true);
+      saveGame(false);
+    }
+
     // 装備変更を主人公の見た目（スプライト）に反映する
     function rebuildHeroTexture(){
       const armorVis=ARMOR_VISUAL[player.armor], weaponVis=WEAPON_VISUAL[player.weapon];
@@ -934,7 +1008,7 @@
     const monsters=[];
     function pickType(){ const r=Math.random(); return r<0.42?0 : r<0.72?1 : r<0.93?2 : 3; }
     function spawnMonster(){
-      if(monsters.length>=8) return;
+      if(monsters.filter(m=>!m.bounds).length>=8) return;   // ダンジョン内モンスター（bounds持ち）は上限に含めない
       let x,z,tries=0;
       do{ const a=Math.random()*7, rr=FIELD_R+4+Math.random()*(FOREST_R-FIELD_R-8);
         x=Math.cos(a)*rr; z=Math.sin(a)*rr; tries++;
@@ -957,6 +1031,7 @@
       scene.remove(m.mesh); scene.remove(m.sh); m.hpEl.remove();
       const bi=billboards.indexOf(m.mesh); if(bi>=0) billboards.splice(bi,1);
       const mi=monsters.indexOf(m); if(mi>=0) monsters.splice(mi,1);
+      if(m.isBoss) onBossDefeated();
     }
     function updateMonsters(dt,t){
       const pInVillage = dist0(player.x,player.z) < FIELD_R;
@@ -968,8 +1043,12 @@
           if(d>m.T.atkRange){ const sp=m.T.speed*dt; m.x+=dx/d*sp; m.z+=dz/d*sp; mvx=dx; }
           if(d<m.T.atkRange+0.3 && m.atkCd<=0){ m.atkCd=1.1; m.x+=dx/d*0.2; m.z+=dz/d*0.2; playerHurt(m.T.atk,m.x,m.z); }
         } else { m.ph+=dt; m.x+=Math.cos(m.ph)*0.25*dt; m.z+=Math.sin(m.ph*0.7)*0.25*dt; }
-        const dc=dist0(m.x,m.z); if(dc<FIELD_R+1){ const k=(FIELD_R+1)/dc; m.x*=k; m.z*=k; }   // 村に入れない
-        m.x=Math.max(-WORLD,Math.min(WORLD,m.x)); m.z=Math.max(-WORLD,Math.min(WORLD,m.z));
+        if(m.bounds){
+          m.x=Math.max(m.bounds.minX,Math.min(m.bounds.maxX,m.x)); m.z=Math.max(m.bounds.minZ,Math.min(m.bounds.maxZ,m.z));
+        } else {
+          const dc=dist0(m.x,m.z); if(dc<FIELD_R+1){ const k=(FIELD_R+1)/dc; m.x*=k; m.z*=k; }   // 村に入れない
+          m.x=Math.max(-WORLD,Math.min(WORLD,m.x)); m.z=Math.max(-WORLD,Math.min(WORLD,m.z));
+        }
         if(m.hurtT>0){ m.hurtT-=dt; if(m.hurtT<=0) m.mesh.material.color.setRGB(1,1,1); }
         if(Math.abs(mvx)>0.001) m.face = mvx<0?-1:1;
         const bob=Math.abs(Math.sin(t*4+m.ph))*0.09;
@@ -984,18 +1063,178 @@
     // --- 建物の出入り ---
     let indoorHouse=null, savedOutdoor=null;
     function enterBuilding(b){
-      if(indoorHouse || !b.interior) return;
+      if(indoorHouse || dungeonFloor || !b.interior) return;
       savedOutdoor={ x:player.x, z:player.z };
       indoorHouse=b;
       player.x=b.interior.ox; player.z=b.interior.oz+b.interior.doorLocalZ; player.facing="up";
+      setZoneVisuals("indoor");
       showBanner(b.label, "屋内");
     }
     function exitBuilding(){
       if(!indoorHouse) return;
       player.x=savedOutdoor.x; player.z=savedOutdoor.z; player.facing="down";
       indoorHouse=null;
+      setZoneVisuals("outdoor");
       showBanner("ルミナ村","SAFE ZONE");
     }
+
+    // ============================================================
+    //  ダンジョン（灯火の地下遺跡）
+    // ============================================================
+    const DUNGEON_BASE_X=1000, DUNGEON_GAP=60, DUNGEON_FLOORS_TOTAL=4;
+    let dungeonFloor=0, dungeonReturnPos=null, dungeonBossDefeated=false;
+    const dungeonRooms=[], dungeonChests=[];
+    // セーブ有無をここで先読みし、以前に倒したボスは再出現させない
+    let initialBossDefeated=false;
+    try{ const raw=localStorage.getItem("lumina_save_v1");
+      if(raw){ const d=JSON.parse(raw); initialBossDefeated=!!d.dungeonBossDefeated; } }catch(e){}
+
+    function makeCaveIcon(){ return pixTex((g)=>{
+      rect(g,0,3,32,22,"#5a5048"); rect(g,0,3,32,3,"#6b6058");
+      ellip(g,16,17,9,10,"#0a0806"); ellip(g,16,17,7,8,"#171016");
+    },32,28); }
+    function makeStairsIcon(){ return pixTex((g)=>{
+      ellip(g,12,10,11,7,"#141018");
+      rect(g,4,9,16,2,"#2e2734"); rect(g,6,11,12,2,"#241e2a"); rect(g,8,13,8,2,"#1a1520");
+    },24,20); }
+    function makeChestIcon(){ return pixTex((g)=>{
+      rect(g,1,9,22,11,"#6b4a2c"); rect(g,1,7,22,4,"#8a6a3a");
+      rect(g,10,9,4,11,"#caa64d"); rect(g,0,8,24,2,"#4a3320");
+    },24,22); }
+    function makeFlameTex(){ return pixTex((g)=>{
+      ellip(g,8,13,6,7,"#ff7a3a"); ellip(g,8,9,4,5,"#ffb347"); ellip(g,8,6,2,3,"#ffec9a");
+    },16,20); }
+
+    // 松明：常設ライトを増やさず、現在の階に応じて少数のライトを使い回す
+    const TORCH_COUNT=3, torchLights=[], torchFlames=[];
+    const flameTex=makeFlameTex();
+    for(let i=0;i<TORCH_COUNT;i++){
+      const pl=new THREE.PointLight(0xff9a4d,0,10,2); pl.position.set(0,-40,0); scene.add(pl); torchLights.push(pl);
+      const spr=makeBillboard(flameTex,0.5,0.8); spr.visible=false; torchFlames.push(spr);
+    }
+    function placeTorches(spots){
+      torchLights.forEach((l,i)=>{
+        const p=spots[i];
+        if(p){ l.position.set(p.x,p.y,p.z); l.intensity=1.2;
+          torchFlames[i].position.set(p.x,p.y-0.35,p.z); torchFlames[i].visible=true; }
+        else { l.intensity=0; torchFlames[i].visible=false; }
+      });
+    }
+    function hideTorches(){ torchLights.forEach(l=>l.intensity=0); torchFlames.forEach(s=>s.visible=false); }
+
+    // ダンジョン専用モンスター（部屋の範囲内に留める・階数に応じて強化）
+    const BOSS_TYPE={ name:"封じられし者", tex:makeOgre(), w:5.6,h:6.4, r:2.1, hp:520, atk:26, def:9, exp:260, gold:320, speed:1.35, aggro:16, atkRange:2.6 };
+    function spawnDungeonMonster(room, typeIdx, mult, pos){
+      const base=MON_TYPES[typeIdx];
+      const T=Object.assign({},base,{ hp:Math.round(base.hp*mult), atk:Math.round(base.atk*mult),
+        def:Math.round(base.def*mult), exp:Math.round(base.exp*mult), gold:Math.round(base.gold*mult) });
+      const m=makeBillboard(T.tex,T.w,T.h); m.position.set(pos.x,0,pos.z);
+      const sh=new THREE.Mesh(new THREE.PlaneGeometry(T.r*2.4,T.r*2.4),shadowMat); sh.rotation.x=-Math.PI/2; sh.position.set(pos.x,0.03,pos.z); scene.add(sh);
+      const hpEl=document.createElement("div"); hpEl.className="monhp"; hpEl.innerHTML="<i></i>"; document.body.appendChild(hpEl);
+      monsters.push({ T, mesh:m, sh, x:pos.x, z:pos.z, hp:T.hp, maxHp:T.hp, atkCd:Math.random(), vx:0, vz:0, ph:Math.random()*7, hurtT:0, hpEl, hpShowT:0, face:1,
+        bounds:{ minX:room.ox-room.halfW+1, maxX:room.ox+room.halfW-1, minZ:room.oz-room.halfD+1, maxZ:room.oz+room.halfD-1 } });
+    }
+    function spawnBoss(room){
+      const T=BOSS_TYPE, x=room.ox, z=room.oz-room.halfD+2.6;
+      const m=makeBillboard(T.tex,T.w,T.h); m.position.set(x,0,z);
+      const sh=new THREE.Mesh(new THREE.PlaneGeometry(T.r*2.6,T.r*2.6),shadowMat); sh.rotation.x=-Math.PI/2; sh.position.set(x,0.03,z); scene.add(sh);
+      const hpEl=document.createElement("div"); hpEl.className="monhp"; hpEl.innerHTML="<i></i>"; document.body.appendChild(hpEl);
+      monsters.push({ T, mesh:m, sh, x, z, hp:T.hp, maxHp:T.hp, atkCd:1, vx:0, vz:0, ph:0, hurtT:0, hpEl, hpShowT:0, face:1, isBoss:true,
+        bounds:{ minX:room.ox-room.halfW+1, maxX:room.ox+room.halfW-1, minZ:room.oz-room.halfD+1, maxZ:room.oz+room.halfD-1 } });
+    }
+    function onBossDefeated(){
+      dungeonBossDefeated=true;
+      progressQuest("boss",1);
+      showBanner("勝利！","封じられし者を打ち破った");
+      floatText(player.x,player.z,"BOSS DEFEATED","#ffd28a",true);
+      saveGame(false);
+    }
+
+    // 宝箱：開封で金・回復・未所持の装備のいずれかをランダムに入手
+    function openChest(chest){
+      if(chest.opened) return;
+      chest.opened=true; chest.mesh.material.color.setRGB(0.5,0.5,0.5);
+      const roll=Math.random();
+      if(roll<0.35){ const g=(20+((Math.random()*30)|0))*chest.floor; addGold(g); floatText(chest.x,chest.z,"+"+g+"G","#e6c268",true); }
+      else if(roll<0.62){ const heal=Math.round(player.maxHp*0.6); player.hp=Math.min(player.maxHp,player.hp+heal); updateHUD();
+        floatText(chest.x,chest.z,"HPが かいふくした","#8fe6d6",true); }
+      else {
+        const pool=[]; WEAPONS.forEach((w,i)=>{ if(!player.ownedW[i]) pool.push({k:"weapon",i}); });
+        ARMORS.forEach((a,i)=>{ if(!player.ownedA[i]) pool.push({k:"armor",i}); });
+        if(pool.length){ const pick=pool[(Math.random()*pool.length)|0];
+          if(pick.k==="weapon"){ player.ownedW[pick.i]=true; floatText(chest.x,chest.z,"「"+WEAPONS[pick.i].name+"」を てにいれた","#e6c268",true); }
+          else { player.ownedA[pick.i]=true; floatText(chest.x,chest.z,"「"+ARMORS[pick.i].name+"」を てにいれた","#e6c268",true); }
+        } else { const g=60*chest.floor; addGold(g); floatText(chest.x,chest.z,"+"+g+"G","#e6c268",true); }
+      }
+      saveGame(false);
+    }
+
+    // 階層の生成（部屋・柱・松明位置・宝箱・階段・初期モンスター）
+    const chestTex=makeChestIcon(), stairsTex=makeStairsIcon();
+    function makeDungeonRoom(floor){
+      const idx=floor-1, ox=DUNGEON_BASE_X+idx*DUNGEON_GAP, oz=0;
+      const halfW=9, halfD=8.5, entryZ=halfD-1.3, wallH=3.4;
+      const floorMesh=new THREE.Mesh(new THREE.PlaneGeometry(halfW*2,halfD*2), new THREE.MeshLambertMaterial({color:0x39323c}));
+      floorMesh.rotation.x=-Math.PI/2; floorMesh.position.set(ox,0.01,oz); scene.add(floorMesh);
+      const outerFloor=new THREE.Mesh(new THREE.PlaneGeometry(50,50), new THREE.MeshBasicMaterial({color:0x040308}));
+      outerFloor.rotation.x=-Math.PI/2; outerFloor.position.set(ox,-0.05,oz); scene.add(outerFloor);
+      const wallMat=new THREE.MeshLambertMaterial({color:0x4a4550});
+      const bw=new THREE.Mesh(new THREE.BoxGeometry(halfW*2,wallH,0.3),wallMat); bw.position.set(ox,wallH/2,oz-halfD); scene.add(bw);
+      const lw=new THREE.Mesh(new THREE.BoxGeometry(0.3,wallH,halfD*2),wallMat); lw.position.set(ox-halfW,wallH/2,oz); scene.add(lw);
+      const rw=new THREE.Mesh(new THREE.BoxGeometry(0.3,wallH,halfD*2),wallMat); rw.position.set(ox+halfW,wallH/2,oz); scene.add(rw);
+      [[-4.5,-2],[4.5,-2],[-4.5,3],[4.5,3]].forEach(p=>{ const px=ox+p[0], pz=oz+p[1];
+        const pil=new THREE.Mesh(new THREE.CylinderGeometry(0.55,0.65,wallH,8),wallMat);
+        pil.position.set(px,wallH/2,pz); scene.add(pil); addSolid(px,pz,0.65); });
+      const torchSpots=[ {x:ox-halfW+0.4,y:1.9,z:oz-2}, {x:ox+halfW-0.4,y:1.9,z:oz-2}, {x:ox,y:1.9,z:oz-halfD+0.4} ];
+      const chestX=ox+(Math.random()<0.5?-6.2:6.2), chestZ=oz+(Math.random()*2-1);
+      const chestMesh=makeBillboard(chestTex,1.1,1.0); chestMesh.position.set(chestX,0,chestZ); addShadow(chestX,chestZ,1.6);
+      const chest={ x:chestX, z:chestZ, r:1.4, mesh:chestMesh, opened:false, floor };
+      dungeonChests.push(chest);
+      let stairsDown=null;
+      if(floor<DUNGEON_FLOORS_TOTAL){
+        const sx=ox, sz=oz-halfD+1.4;
+        const holeMesh=makeBillboard(stairsTex,1.4,1.2); holeMesh.position.set(sx,0,sz);
+        stairsDown={x:sx,z:sz,r:1.5};
+      }
+      const room={ ox, oz, halfW, halfD, entryZ, torchSpots, chest, stairsDown, floor };
+      dungeonRooms[idx]=room;
+      const mult=1+(floor-1)*0.55;
+      const spots=[ {x:ox-3,z:oz-3}, {x:ox+3,z:oz-3}, {x:ox+2,z:oz+2} ];
+      if(floor<DUNGEON_FLOORS_TOTAL){ for(let i=0;i<3;i++) spawnDungeonMonster(room, pickType(), mult, spots[i%spots.length]); }
+      if(floor===DUNGEON_FLOORS_TOTAL && !initialBossDefeated){ spawnBoss(room); }
+      return room;
+    }
+    for(let f=1; f<=DUNGEON_FLOORS_TOTAL; f++) makeDungeonRoom(f);
+    if(initialBossDefeated) dungeonBossDefeated=true;
+
+    // ダンジョン入口（フィールド北側）
+    const caveTex=makeCaveIcon();
+    const caveMesh=makeBillboard(caveTex,4.4,3.8); caveMesh.position.set(0,0,-42);
+    addSolid(0,-42,1.8); addShadow(0,-42,4);
+    const dungeonEntrance={ x:0, z:-42+2.6, r:1.6, label:"灯火の地下遺跡" };
+
+    function goToDungeonFloor(floor){
+      const room=dungeonRooms[floor-1];
+      dungeonFloor=floor;
+      player.x=room.ox; player.z=room.oz+room.entryZ; player.facing="up";
+      placeTorches(room.torchSpots);
+      setZoneVisuals("dungeon");
+      showBanner("地下遺跡 "+floor+"階", floor>=DUNGEON_FLOORS_TOTAL?"最深部・何かの気配":"");
+      progressQuest("floor"+floor,1);
+    }
+    function enterDungeon(){
+      if(dungeonFloor || indoorHouse) return;
+      dungeonReturnPos={ x:player.x, z:player.z };
+      goToDungeonFloor(1);
+    }
+    function exitDungeonToSurface(){
+      dungeonFloor=0;
+      player.x=dungeonReturnPos.x; player.z=dungeonReturnPos.z; player.facing="down";
+      hideTorches(); setZoneVisuals("outdoor");
+      showBanner("ルミナ郊外","FIELD ・ 魔物出現");
+    }
+    function goDungeonDown(){ if(!dungeonFloor || dungeonFloor>=DUNGEON_FLOORS_TOTAL) return; goToDungeonFloor(dungeonFloor+1); }
+    function goDungeonUp(){ if(!dungeonFloor) return; if(dungeonFloor===1){ exitDungeonToSurface(); return; } goToDungeonFloor(dungeonFloor-1); }
 
     // --- プレイヤー：移動補助・攻撃・回避・被弾 ---
     function movePlayer(dx,dz){
@@ -1004,6 +1243,9 @@
       if(indoorHouse){ const it=indoorHouse.interior;
         player.x=Math.max(it.ox-it.halfW+0.4, Math.min(it.ox+it.halfW-0.4, player.x));
         player.z=Math.max(it.oz-it.halfD+0.3, Math.min(it.oz+it.halfD-0.2, player.z));
+      } else if(dungeonFloor){ const room=dungeonRooms[dungeonFloor-1];
+        player.x=Math.max(room.ox-room.halfW+0.4, Math.min(room.ox+room.halfW-0.4, player.x));
+        player.z=Math.max(room.oz-room.halfD+0.3, Math.min(room.oz+room.halfD-0.3, player.z));
       } else {
         player.x=Math.max(-WORLD,Math.min(WORLD,player.x)); player.z=Math.max(-WORLD,Math.min(WORLD,player.z));
       }
@@ -1039,7 +1281,10 @@
     }
     function playerDie(){
       player.dead=true; player.hp=0; updateHUD(); showBanner("力尽きた…","村で目を覚ます");
-      setTimeout(()=>{ player.x=0; player.z=7; player.dead=false; player.hp=player.maxHp; player.iframes=1.5; player.dash=null; player.knock=null; updateHUD(); },1500);
+      setTimeout(()=>{
+        player.x=0; player.z=7; player.dead=false; player.hp=player.maxHp; player.iframes=1.5; player.dash=null; player.knock=null;
+        indoorHouse=null; dungeonFloor=0; hideTorches(); setZoneVisuals("outdoor"); updateHUD();
+      },1500);
     }
 
     // --- ショップUI ---
@@ -1093,10 +1338,11 @@
     }
     function saveGame(manual){
       try{
-        const pos = indoorHouse ? savedOutdoor : { x:player.x, z:player.z };
+        const pos = indoorHouse ? savedOutdoor : (dungeonFloor ? dungeonReturnPos : { x:player.x, z:player.z });
         const data={ v:1, level:player.level, exp:player.exp, expNext:player.expNext, gold:player.gold,
           baseMaxHp:player.baseMaxHp, baseAtk:player.baseAtk, baseDef:player.baseDef, hp:player.hp,
           weapon:player.weapon, armor:player.armor, ownedW:player.ownedW, ownedA:player.ownedA,
+          quests:player.quests, greeted:Array.from(greetedSet), dungeonBossDefeated,
           x:pos.x, z:pos.z, savedAt:Date.now() };
         localStorage.setItem(SAVE_KEY, JSON.stringify(data));
         lastSaveAt=data.savedAt; updateSaveStatusLabel();
@@ -1112,7 +1358,10 @@
         Object.assign(player,{ level:d.level, exp:d.exp, expNext:d.expNext, gold:d.gold,
           baseMaxHp:d.baseMaxHp, baseAtk:d.baseAtk, baseDef:d.baseDef,
           weapon:d.weapon||0, armor:d.armor||0, ownedW:d.ownedW||{0:true}, ownedA:d.ownedA||{0:true},
+          quests:d.quests||player.quests,
           x:(typeof d.x==="number")?d.x:0, z:(typeof d.z==="number")?d.z:7 });
+        if(Array.isArray(d.greeted)){ greetedSet.clear(); d.greeted.forEach(n=>greetedSet.add(n)); }
+        if(d.dungeonBossDefeated) dungeonBossDefeated=true;
         deriveStats();
         player.hp=(typeof d.hp==="number")?Math.min(d.hp,player.maxHp):player.maxHp;
         lastSaveAt=d.savedAt||0;
@@ -1131,6 +1380,7 @@
           m_eqWIc=document.getElementById("m-eq-w-ic"), m_eqWNm=document.getElementById("m-eq-w-nm"), m_eqWSub=document.getElementById("m-eq-w-sub"),
           m_eqAIc=document.getElementById("m-eq-a-ic"), m_eqANm=document.getElementById("m-eq-a-nm"), m_eqASub=document.getElementById("m-eq-a-sub"),
           m_wlist=document.getElementById("m-weapon-list"), m_alist=document.getElementById("m-armor-list"),
+          m_qlist=document.getElementById("m-quest-list"),
           m_saveBtn=document.getElementById("menu-save-btn"), m_saveStatus=document.getElementById("menu-save-status");
     function openMenu(){ menuOpen=true; menuEl.style.display="flex"; updateMenu(); }
     function closeMenu(){ menuOpen=false; menuEl.style.display="none"; }
@@ -1154,6 +1404,19 @@
         el.appendChild(row);
       });
     }
+    function buildQuestList(){
+      m_qlist.innerHTML="";
+      QUESTS.forEach(def=>{
+        const st=player.quests[def.id];
+        const row=document.createElement("div");
+        row.className="item quest"+(st.status==="locked"?" locked":"");
+        const statusLabel = st.status==="done" ? "達成" : st.status==="active" ? "進行中 "+st.progress+"/"+def.target : "未受注";
+        row.innerHTML='<div class="qhead"><span class="qtitle">'+def.title+'</span>'
+          +'<span class="qstatus '+st.status+'">'+statusLabel+'</span></div>'
+          +'<div class="qdesc">'+def.desc+'</div>';
+        m_qlist.appendChild(row);
+      });
+    }
     function updateMenu(){
       m_lv.textContent=player.level; m_gold.textContent=player.gold;
       m_hp.style.width=Math.max(0,player.hp)/player.maxHp*100+"%";
@@ -1166,6 +1429,7 @@
       m_eqAIc.textContent=a.ic; m_eqANm.textContent=a.name; m_eqASub.textContent="防御+"+a.def+"・HP+"+a.hp+"／"+a.desc;
       buildGearList(m_wlist, WEAPONS, player.ownedW, player.weapon, "weapon");
       buildGearList(m_alist, ARMORS, player.ownedA, player.armor, "armor");
+      buildQuestList();
       updateSaveStatusLabel();
     }
 
@@ -1244,14 +1508,25 @@
     // アクションボタン
     const actBtn=document.getElementById("act");
     let nearTarget=null;
+    const GREET_NAMES=new Set(["村長 オルヴァ","見習い リィナ","門番 ダグ","道具屋 マーサ"]);
+    const greetedSet=new Set();
     function tryAct(){
       if(convo){ advanceConvo(); return; }
       if(shopOpen || menuOpen) return;
       if(nearTarget){
         if(nearTarget.type==="door"){ enterBuilding(nearTarget.building); return; }
         if(nearTarget.type==="exit"){ exitBuilding(); return; }
+        if(nearTarget.type==="dungeonEntrance"){ enterDungeon(); return; }
+        if(nearTarget.type==="stairsDown"){ goDungeonDown(); return; }
+        if(nearTarget.type==="stairsUp"){ goDungeonUp(); return; }
+        if(nearTarget.type==="chest"){ openChest(nearTarget.chest); return; }
         if(nearTarget.shop) openShop(nearTarget.shop, nearTarget.name);
-        else openConvo(nearTarget.name, nearTarget.lines);
+        else {
+          if(GREET_NAMES.has(nearTarget.name) && !greetedSet.has(nearTarget.name)){
+            greetedSet.add(nearTarget.name); progressQuest("greet",1); }
+          if(nearTarget.name==="門番 ダグ") acceptDungeonQuests();
+          openConvo(nearTarget.name, nearTarget.lines);
+        }
         return;
       }
       doAttack();
@@ -1332,16 +1607,19 @@
       // 戦闘・フィールド更新（屋内では魔物との接触判定に届かないため実質無害）
       updateMonsters(dt,t);
       updateSlashes(dt);
-      spawnT-=dt; if(spawnT<=0){ spawnT=2.4; if(!indoorHouse && dist0(player.x,player.z)>FIELD_R-2) spawnMonster(); }
-      // 村・屋内での自然回復
-      const safeZone = !!indoorHouse || dist0(player.x,player.z)<FIELD_R;
+      spawnT-=dt; if(spawnT<=0){ spawnT=2.4; if(!indoorHouse && !dungeonFloor && dist0(player.x,player.z)>FIELD_R-2) spawnMonster(); }
+      // 村・屋内での自然回復（ダンジョンでは回復しない）
+      const safeZone = !!indoorHouse || (!dungeonFloor && dist0(player.x,player.z)<FIELD_R);
       if(safeZone && !player.dead && player.hp<player.maxHp){
         player.hp=Math.min(player.maxHp, player.hp+9*dt); updateHUD(); }
-      // ゾーン表示切替（屋内にいる間は切り替えない）
-      const nowField = !indoorHouse && dist0(player.x,player.z)>FIELD_R;
-      if(nowField!==inField){ inField=nowField;
-        if(inField) showBanner("ルミナ郊外","FIELD ・ 魔物出現"); else showBanner("ルミナ村","SAFE ZONE"); }
+      // ゾーン表示切替（屋内・ダンジョンにいる間は判定自体を止める。松明は揺らめかせる）
+      if(!indoorHouse && !dungeonFloor){
+        const nowField = dist0(player.x,player.z)>FIELD_R;
+        if(nowField!==inField){ inField=nowField;
+          if(inField) showBanner("ルミナ郊外","FIELD ・ 魔物出現"); else showBanner("ルミナ村","SAFE ZONE"); }
+      }
       if(bannerT>0){ bannerT-=dt; if(bannerT<=0) banner.style.opacity="0"; }
+      if(dungeonFloor){ torchLights.forEach((l,i)=>{ if(l.intensity>0) l.intensity=1.1+Math.sin(t*9+i*2)*0.22+Math.random()*0.08; }); }
 
       // 近接インタラクト＆アクションボタンの文脈
       nearTarget=null; let best=1e9;
@@ -1349,8 +1627,14 @@
       if(indoorHouse){
         const it=indoorHouse.interior;
         all=all.concat([{ x:it.ox, z:it.oz+it.doorLocalZ, r:1.3, name:"出口", type:"exit" }]);
+      } else if(dungeonFloor){
+        const room=dungeonRooms[dungeonFloor-1];
+        all=all.concat([{ x:room.ox, z:room.oz+room.entryZ, r:1.4, name:(dungeonFloor===1?"地上へ":"のぼる"), type:"stairsUp" }]);
+        if(room.stairsDown) all=all.concat([{ x:room.stairsDown.x, z:room.stairsDown.z, r:room.stairsDown.r, name:"下へ", type:"stairsDown" }]);
+        all=all.concat(dungeonChests.filter(c=>!c.opened && c.floor===dungeonFloor).map(c=>({ x:c.x, z:c.z, r:c.r, name:"宝箱", type:"chest", chest:c })));
       } else {
         all=all.concat(buildings.map(b=>({ x:b.doorX, z:b.doorZ, r:b.r, name:b.label, type:"door", building:b })));
+        all=all.concat([{ x:dungeonEntrance.x, z:dungeonEntrance.z, r:dungeonEntrance.r, name:dungeonEntrance.label, type:"dungeonEntrance" }]);
       }
       for(const o of all){ const dx=player.x-o.x,dz=player.z-o.z; const d=dx*dx+dz*dz;
         if(d<o.r*o.r && d<best){ best=d; nearTarget=o; } }
@@ -1359,6 +1643,8 @@
       else if(nearTarget){
         actBtn.classList.add("show"); actBtn.classList.remove("combat");
         actBtn.textContent = nearTarget.type==="door" ? "はいる" : nearTarget.type==="exit" ? "でる"
+          : nearTarget.type==="dungeonEntrance" ? "はいる" : nearTarget.type==="stairsDown" ? "おりる"
+          : nearTarget.type==="stairsUp" ? nearTarget.name : nearTarget.type==="chest" ? "あける"
           : nearTarget.shop ? "みせ" : (examinables.some(e=>e.name===nearTarget.name)?"しらべる":"はなす");
         const s=worldToScreen(nearTarget.x,2.6,nearTarget.z);
         if(s.vis){ promptEl.style.display="block"; promptEl.style.left=s.x+"px"; promptEl.style.top=s.y+"px"; promptEl.textContent="！"; }
@@ -1366,7 +1652,7 @@
         actBtn.classList.add("show","combat"); actBtn.textContent="こうげき"; promptEl.style.display="none";
       }
       // 回避ボタン（フィールドでのみ）
-      dodgeBtn.style.display = (inField && !convo && !shopOpen && !menuOpen && !player.dead) ? "flex" : "none";
+      dodgeBtn.style.display = ((inField||dungeonFloor) && !convo && !shopOpen && !menuOpen && !player.dead) ? "flex" : "none";
       dodgeBtn.classList.toggle("cool", player.dodgeCd>0);
 
       renderer.render(scene,camera);
