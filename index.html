@@ -252,6 +252,13 @@
     font-family:"Hiragino Mincho ProN",serif; color:var(--ink); letter-spacing:.1em; font-size:14px;
     background:linear-gradient(180deg,#f0dfae,#d3ad4d); box-shadow:0 4px 12px rgba(0,0,0,.4); }
   #menu-save-status{ font-size:12px; color:#bcae90; }
+  #menu-potion-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin:8px 0 16px;
+    padding:9px 12px; background:rgba(255,255,255,.03); border:1px solid rgba(230,194,104,.18); border-radius:10px; }
+  #menu-potion-count{ font-size:13px; color:var(--parch); }
+  #menu-potion-use{ padding:8px 16px; border:none; border-radius:9px; cursor:pointer;
+    font-family:"Hiragino Mincho ProN",serif; color:var(--ink); letter-spacing:.08em; font-size:13px;
+    background:linear-gradient(180deg,#a9f0e4,#4bbfae); box-shadow:0 3px 8px rgba(0,0,0,.35); }
+  #menu-potion-use:disabled{ opacity:.4; cursor:default; }
   #menu-close{ margin:0 14px 16px; padding:12px; border:none; border-radius:10px; cursor:pointer;
     font-family:"Hiragino Mincho ProN",serif; color:var(--ink); letter-spacing:.14em; font-size:15px;
     background:linear-gradient(180deg,#f0dfae,#d3ad4d); box-shadow:0 4px 12px rgba(0,0,0,.4); }
@@ -314,11 +321,20 @@
       <div class="sec-title">装備中</div>
       <div class="equip-now"><div class="ic" id="m-eq-w-ic">🪵</div><div class="tx"><span id="m-eq-w-nm">こんぼう</span><small id="m-eq-w-sub"></small></div></div>
       <div class="equip-now"><div class="ic" id="m-eq-a-ic">👕</div><div class="tx"><span id="m-eq-a-nm">旅の服</span><small id="m-eq-a-sub"></small></div></div>
+      <div class="equip-now"><div class="ic" id="m-eq-acc-ic">—</div><div class="tx"><span id="m-eq-acc-nm">なし</span><small id="m-eq-acc-sub"></small></div></div>
 
       <div class="sec-title">武器（所持品・タップで装備）</div>
       <div class="glist" id="m-weapon-list"></div>
       <div class="sec-title">防具（所持品・タップで装備）</div>
       <div class="glist" id="m-armor-list"></div>
+      <div class="sec-title">アクセサリー（所持品・タップで装備）</div>
+      <div class="glist" id="m-acc-list"></div>
+
+      <div class="sec-title">道具</div>
+      <div id="menu-potion-row">
+        <span id="menu-potion-count">🧪 回復薬 ×0</span>
+        <button id="menu-potion-use">つかう</button>
+      </div>
 
       <div class="sec-title">クエスト</div>
       <div class="glist" id="m-quest-list"></div>
@@ -606,6 +622,12 @@
       for(let y=4;y<26;y++){ const w=Math.round(11*(1-Math.pow((y-4)/22,2))); rect(g,16-w,y,w*2,1, y<20?s:s2); }
       rect(g,15,7,2,16,r); rect(g,8,12,16,2,r);                      // 十字
     }, 32, 32); }
+    function makePotionIcon(){ return pixTex((g)=>{
+      rect(g,13,4,6,5,"#8a6a3a");                                     // 栓
+      ellip(g,16,20,9,8,"#7fe6c8"); ellip(g,16,20,7,6,"#4fc9a8");     // 丸ボトル・薬液
+      rect(g,12,10,8,6,"#cfe8e0");                                    // ガラスの首
+      rect(g,13,15,2,3,"#eafff8");                                    // ハイライト
+    }, 32, 32); }
 
     // 地面テクスチャ（草＋土の小道）
     function groundTexture(){
@@ -735,7 +757,8 @@
       [-11,-9, .5], [ 11,-8,-.5], [-13, 5,-.4],
       [ 12, 6, .4], [ 0,-14, 0], [-4, 12, .2], [ 7, 13,-.2]
     ];
-    houses.forEach((h,i)=>makeHouse(h[0],h[1],h[2],walls[i%walls.length],roofs[i%roofs.length]));
+    houses.forEach((h,i)=>makeHouse(h[0],h[1],h[2],walls[i%walls.length],roofs[i%roofs.length],
+      i===0 ? {label:"道具屋", type:"tool"} : undefined));
 
     // 中央の泉
     (function fountain(){
@@ -904,20 +927,20 @@
         "森の奥、消えた《灯火の祠》を巡ってほしい。地図はリィナが持ってる。",
         "気をつけてな。無茶はするなよ、若いの。"
       ]});
-    addNPC({ x:-11.5,z:-7.2, name:"道具屋 マーサ", col:{hair:"#b0603a",body:"#4a8f6a",body2:"#356b4e"},
-      lines:[
-        "いらっしゃい！ 薬草でも縄でも、旅の用意はここで揃うよ。",
-        "……とはいえ 今は開店準備中さ。次に来たときは 店を開けとくよ。",
-        "無事に帰っておいで。灯りは いつでも点けて待ってるからね。"
-      ]});
 
     // --- 武器屋・防具屋（建物＋看板アイコン。店主は建物の中にいる） ---
     makeHouse(-8.5,-6.5, 0.15, 0xd9b48a, 0x9a4636, {label:"武器屋", type:"weapon"});
     makeHouse( 8.5,-6.5,-0.15, 0xc9b8d0, 0x3f6f8a, {label:"防具屋", type:"armor"});
     const swordSign=makeBillboard(makeSwordIcon(),1.5,1.5); swordSign.position.set(-8.5,2.0,-3.0);
     const shieldSign=makeBillboard(makeShieldIcon(),1.5,1.5); shieldSign.position.set(8.5,2.0,-3.0);
+    const toolBuilding=buildings.find(b=>b.type==="tool");
+    if(toolBuilding){
+      const dx=Math.sin(toolBuilding.rot), dz=Math.cos(toolBuilding.rot);
+      const potionSign=makeBillboard(makePotionIcon(),1.5,1.5);
+      potionSign.position.set(toolBuilding.x+dx*2.6, 2.0, toolBuilding.z+dz*2.6);
+    }
 
-    // --- 建物内部を生成し、武器屋・防具屋には店主を配置 ---
+    // --- 建物内部を生成し、武器屋・防具屋・道具屋には店主を配置 ---
     buildings.forEach((b,i)=>{
       makeInteriorRoom(b,i);
       if(b.type==="weapon"){
@@ -926,6 +949,9 @@
       } else if(b.type==="armor"){
         addNPC({ x:b.interior.ox, z:b.interior.oz-b.interior.halfD+2.1, name:"防具屋 ミラ", shop:"armor",
           col:{hair:"#c9b06a",body:"#4f7a9a",body2:"#3a5c76"} });
+      } else if(b.type==="tool"){
+        addNPC({ x:b.interior.ox, z:b.interior.oz-b.interior.halfD+2.1, name:"道具屋 マーサ", shop:"tool",
+          col:{hair:"#b0603a",body:"#4a8f6a",body2:"#356b4e"} });
       }
     });
 
@@ -958,6 +984,15 @@
       {name:"鉄の鎧",     def:16, hp:34, price:820,  ic:"🛡️", desc:"重厚な守り。"},
       {name:"竜鱗の鎧",   def:26, hp:64, price:2200, ic:"🐉", desc:"竜の鱗で編んだ鎧。"}
     ];
+    // --- アクセサリー（道具屋で購入・装備）と道具屋の品ぞろえ ---
+    const ACCESSORIES=[
+      {name:"なし",     ic:"—",   desc:"何も身につけていない。"},
+      {name:"ランタン", ic:"🏮", desc:"暗い場所を照らす、あたたかい明かり。"}
+    ];
+    const TOOLS=[
+      {name:"回復薬", kind:"potion",    heal:30,        price:25,  ic:"🧪", desc:"HPを30回復する。いくつでも持てる。"},
+      {name:"ランタン", kind:"accessory", accIdx:1, price:180, ic:"🏮", desc:"暗いダンジョンで足元と周囲を照らす。"}
+    ];
 
     // --- プレイヤー戦闘ステータス ---
     Object.assign(player,{
@@ -965,6 +1000,7 @@
       baseMaxHp:40, baseAtk:6, baseDef:2,
       hp:40, maxHp:40, atk:0, def:0,
       weapon:0, armor:0, ownedW:{0:true}, ownedA:{0:true},
+      accessory:0, ownedAcc:{0:true}, potions:0,
       iframes:0, dodgeCd:0, attackCd:0, dash:null, knock:null, dead:false
     });
     function deriveStats(){ const w=WEAPONS[player.weapon], a=ARMORS[player.armor];
@@ -1022,7 +1058,18 @@
       s_hp.style.width=Math.max(0,player.hp)/player.maxHp*100+"%";
       s_hptext.textContent=Math.max(0,Math.ceil(player.hp))+"/"+player.maxHp;
       s_xp.style.width=(player.exp/player.expNext*100)+"%";
-      s_gear.textContent="⚔ "+WEAPONS[player.weapon].name+" ／ 🛡 "+ARMORS[player.armor].name;
+      s_gear.textContent="⚔ "+WEAPONS[player.weapon].name+" ／ 🛡 "+ARMORS[player.armor].name
+        +(player.accessory ? " ／ "+ACCESSORIES[player.accessory].ic+" "+ACCESSORIES[player.accessory].name : "")
+        +(player.potions ? " ／ 🧪×"+player.potions : "");
+    }
+    function usePotion(){
+      if(!player.potions){ return; }
+      if(player.hp>=player.maxHp){ floatText(player.x,player.z,"HPは満タンだ","#8fe6d6"); return; }
+      player.potions--; const heal=TOOLS.find(t=>t.kind==="potion").heal;
+      player.hp=Math.min(player.maxHp, player.hp+heal); updateHUD();
+      floatText(player.x,player.z,"HPが"+heal+"回復した","#8fe6d6",true);
+      if(menuOpen) updateMenu();
+      saveGame(false);
     }
     function addGold(n){ player.gold+=n; updateHUD(); }
     function addExp(n){ player.exp+=n; while(player.exp>=player.expNext) levelUp(); updateHUD(); }
@@ -1183,6 +1230,18 @@
       });
     }
     function hideTorches(){ torchLights.forEach(l=>l.intensity=0); torchFlames.forEach(s=>s.visible=false); }
+
+    // ランタン：装備して暗い場所（ダンジョン）にいる間、プレイヤーの足元を照らす
+    const lanternLight=new THREE.PointLight(0xffcf8a,0,7.5,2); lanternLight.position.set(0,-40,0); scene.add(lanternLight);
+    const lanternGlow=makeBillboard(flameTex,0.42,0.6); lanternGlow.visible=false; lanternGlow.material.color.setHex(0xffe6b0);
+    function updateLantern(t){
+      const lit = player.accessory===1 && dungeonFloor>0 && !player.dead;
+      if(lit){
+        lanternLight.position.set(player.x, 1.5, player.z);
+        lanternLight.intensity=1.35+Math.sin(t*7)*0.12;
+        lanternGlow.visible=true; lanternGlow.position.set(player.x+0.35, 1.25, player.z+0.1);
+      } else { lanternLight.intensity=0; lanternGlow.visible=false; }
+    }
 
     // ダンジョン専用モンスター（部屋の範囲内に留める・階数に応じて強化）
     const BOSS_TYPE={ name:"封じられし者", tex:makeOgre(), w:5.6,h:6.4, r:2.1, hp:520, atk:26, def:9, exp:260, gold:320, speed:1.35, aggro:16, atkRange:2.6 };
@@ -1356,11 +1415,12 @@
     const shopEl=document.getElementById("shop"), shopNameEl=document.getElementById("shop-name"),
           shopGoldEl=document.getElementById("shop-gold"), shopListEl=document.getElementById("shop-list");
     function openShop(type,name){ shopOpen=true; shopType=type; shopEl.style.display="flex";
-      shopNameEl.textContent=name||(type==="weapon"?"武器屋":"防具屋"); buildShop(); }
+      shopNameEl.textContent=name||(type==="weapon"?"武器屋":type==="armor"?"防具屋":"道具屋"); buildShop(); }
     function closeShop(){ shopOpen=false; shopEl.style.display="none"; }
     document.getElementById("shop-close").addEventListener("click",closeShop);
     function buildShop(){
       shopGoldEl.textContent="🪙 "+player.gold;
+      if(shopType==="tool"){ buildToolShopList(); return; }
       const list=shopType==="weapon"?WEAPONS:ARMORS;
       const owned=shopType==="weapon"?player.ownedW:player.ownedA;
       const equipped=shopType==="weapon"?player.weapon:player.armor;
@@ -1389,6 +1449,42 @@
       if(shopType==="weapon") player.weapon=idx; else player.armor=idx;
       deriveStats(); updateHUD(); buildShop(); rebuildHeroTexture(); saveGame(false);
     }
+    // --- 道具屋（回復薬は個数所持、ランタンはアクセサリーとして装備） ---
+    function buildToolShopList(){
+      shopListEl.innerHTML="";
+      TOOLS.forEach((it,idx)=>{
+        const isAcc=it.kind==="accessory";
+        const isOwned=isAcc && !!player.ownedAcc[it.accIdx];
+        const isEq=isAcc && player.accessory===it.accIdx;
+        const canBuy=player.gold>=it.price;
+        const row=document.createElement("div");
+        row.className="item"+(isEq?" equipped":"")+((!isOwned&&!canBuy)?" locked":"");
+        let stat, pr;
+        if(isAcc){
+          stat="装備品／"+it.desc;
+          if(isEq) pr='<span class="eq">装備中</span>';
+          else if(isOwned) pr='<span class="own">所持</span><span class="tag">タップで装備</span>';
+          else pr=it.price+" G<span class=\"tag\">"+(canBuy?"タップで購入":"金貨不足")+"</span>";
+        } else {
+          stat="HP+"+it.heal+"回復／"+it.desc;
+          pr=it.price+" G<span class=\"tag\">"+(canBuy?"タップで購入（所持 "+(player.potions||0)+"）":"金貨不足")+"</span>";
+        }
+        row.innerHTML='<div class="ic">'+it.ic+'</div><div class="nm">'+it.name+'<small>'+stat+'</small></div><div class="pr">'+pr+'</div>';
+        row.addEventListener("click",()=>selectToolItem(idx));
+        shopListEl.appendChild(row);
+      });
+    }
+    function selectToolItem(idx){
+      const it=TOOLS[idx];
+      if(it.kind==="potion"){
+        if(player.gold<it.price) return;
+        player.gold-=it.price; player.potions=(player.potions||0)+1;
+        updateHUD(); buildToolShopList(); saveGame(false); return;
+      }
+      if(!player.ownedAcc[it.accIdx]){ if(player.gold<it.price) return; player.gold-=it.price; player.ownedAcc[it.accIdx]=true; }
+      player.accessory=it.accIdx;
+      updateHUD(); buildToolShopList(); saveGame(false);
+    }
 
     // --- セーブ／オートセーブ（localStorage） ---
     const SAVE_KEY="lumina_save_v1";
@@ -1406,6 +1502,7 @@
         const data={ v:1, level:player.level, exp:player.exp, expNext:player.expNext, gold:player.gold,
           baseMaxHp:player.baseMaxHp, baseAtk:player.baseAtk, baseDef:player.baseDef, hp:player.hp,
           weapon:player.weapon, armor:player.armor, ownedW:player.ownedW, ownedA:player.ownedA,
+          accessory:player.accessory, ownedAcc:player.ownedAcc, potions:player.potions,
           quests:player.quests, greeted:Array.from(greetedSet), dungeonBossDefeated,
           x:pos.x, z:pos.z, savedAt:Date.now() };
         localStorage.setItem(SAVE_KEY, JSON.stringify(data));
@@ -1422,6 +1519,7 @@
         Object.assign(player,{ level:d.level, exp:d.exp, expNext:d.expNext, gold:d.gold,
           baseMaxHp:d.baseMaxHp, baseAtk:d.baseAtk, baseDef:d.baseDef,
           weapon:d.weapon||0, armor:d.armor||0, ownedW:d.ownedW||{0:true}, ownedA:d.ownedA||{0:true},
+          accessory:d.accessory||0, ownedAcc:d.ownedAcc||{0:true}, potions:d.potions||0,
           quests:d.quests||player.quests,
           x:(typeof d.x==="number")?d.x:0, z:(typeof d.z==="number")?d.z:7 });
         if(Array.isArray(d.greeted)){ greetedSet.clear(); d.greeted.forEach(n=>greetedSet.add(n)); }
@@ -1443,17 +1541,21 @@
           m_atk=document.getElementById("m-atk"), m_def=document.getElementById("m-def"),
           m_eqWIc=document.getElementById("m-eq-w-ic"), m_eqWNm=document.getElementById("m-eq-w-nm"), m_eqWSub=document.getElementById("m-eq-w-sub"),
           m_eqAIc=document.getElementById("m-eq-a-ic"), m_eqANm=document.getElementById("m-eq-a-nm"), m_eqASub=document.getElementById("m-eq-a-sub"),
+          m_eqAccIc=document.getElementById("m-eq-acc-ic"), m_eqAccNm=document.getElementById("m-eq-acc-nm"), m_eqAccSub=document.getElementById("m-eq-acc-sub"),
           m_wlist=document.getElementById("m-weapon-list"), m_alist=document.getElementById("m-armor-list"),
-          m_qlist=document.getElementById("m-quest-list"),
+          m_acclist=document.getElementById("m-acc-list"), m_qlist=document.getElementById("m-quest-list"),
+          m_potionCount=document.getElementById("menu-potion-count"), m_potionUse=document.getElementById("menu-potion-use"),
           m_saveBtn=document.getElementById("menu-save-btn"), m_saveStatus=document.getElementById("menu-save-status");
     function openMenu(){ menuOpen=true; menuEl.style.display="flex"; updateMenu(); }
     function closeMenu(){ menuOpen=false; menuEl.style.display="none"; }
     menuBtn.addEventListener("click",()=>{ if(menuOpen) closeMenu(); else if(!convo && !shopOpen) openMenu(); });
     document.getElementById("menu-close").addEventListener("click",closeMenu);
     m_saveBtn.addEventListener("click",()=>saveGame(true));
+    m_potionUse.addEventListener("click",()=>{ usePotion(); updateMenu(); });
     function menuEquip(kind, idx){
       if(kind==="weapon"){ if(!player.ownedW[idx]) return; player.weapon=idx; }
-      else { if(!player.ownedA[idx]) return; player.armor=idx; }
+      else if(kind==="armor"){ if(!player.ownedA[idx]) return; player.armor=idx; }
+      else { if(!player.ownedAcc[idx]) return; player.accessory=idx; updateHUD(); updateMenu(); saveGame(false); return; }
       deriveStats(); updateHUD(); rebuildHeroTexture(); updateMenu(); saveGame(false);
     }
     function buildGearList(el, list, owned, equippedIdx, kind){
@@ -1462,7 +1564,7 @@
         if(!owned[idx]) return;
         const row=document.createElement("div");
         row.className="item"+(idx===equippedIdx?" equipped":"");
-        const stat=kind==="weapon" ? "攻撃+"+it.atk : "防御+"+it.def+"・HP+"+it.hp;
+        const stat=kind==="weapon" ? "攻撃+"+it.atk : kind==="armor" ? "防御+"+it.def+"・HP+"+it.hp : it.desc;
         row.innerHTML='<div class="ic">'+it.ic+'</div><div class="nm">'+it.name+'</div><div class="eq">'+(idx===equippedIdx?"装備中":stat)+'</div>';
         row.addEventListener("click",()=>menuEquip(kind, idx));
         el.appendChild(row);
@@ -1488,11 +1590,15 @@
       m_xp.style.width=(player.exp/player.expNext*100)+"%";
       m_xptext.textContent=player.exp+"/"+player.expNext;
       m_atk.textContent=player.atk; m_def.textContent=player.def;
-      const w=WEAPONS[player.weapon], a=ARMORS[player.armor];
+      const w=WEAPONS[player.weapon], a=ARMORS[player.armor], acc=ACCESSORIES[player.accessory];
       m_eqWIc.textContent=w.ic; m_eqWNm.textContent=w.name; m_eqWSub.textContent="攻撃+"+w.atk+"／"+w.desc;
       m_eqAIc.textContent=a.ic; m_eqANm.textContent=a.name; m_eqASub.textContent="防御+"+a.def+"・HP+"+a.hp+"／"+a.desc;
+      m_eqAccIc.textContent=acc.ic; m_eqAccNm.textContent=acc.name; m_eqAccSub.textContent=acc.desc;
       buildGearList(m_wlist, WEAPONS, player.ownedW, player.weapon, "weapon");
       buildGearList(m_alist, ARMORS, player.ownedA, player.armor, "armor");
+      buildGearList(m_acclist, ACCESSORIES, player.ownedAcc, player.accessory, "accessory");
+      m_potionCount.textContent="🧪 回復薬 ×"+(player.potions||0);
+      m_potionUse.disabled = !player.potions || player.hp>=player.maxHp;
       buildQuestList();
       updateSaveStatusLabel();
     }
@@ -1634,10 +1740,10 @@
         if(nearTarget.type==="stairsDown"){ goDungeonDown(); return; }
         if(nearTarget.type==="stairsUp"){ goDungeonUp(); return; }
         if(nearTarget.type==="chest"){ openChest(nearTarget.chest); return; }
+        if(GREET_NAMES.has(nearTarget.name) && !greetedSet.has(nearTarget.name)){
+          greetedSet.add(nearTarget.name); progressQuest("greet",1); }
         if(nearTarget.shop) openShop(nearTarget.shop, nearTarget.name);
         else {
-          if(GREET_NAMES.has(nearTarget.name) && !greetedSet.has(nearTarget.name)){
-            greetedSet.add(nearTarget.name); progressQuest("greet",1); }
           if(nearTarget.name==="門番 ダグ") acceptDungeonQuests();
           openConvo(nearTarget.name, nearTarget.lines);
         }
@@ -1734,6 +1840,7 @@
       }
       if(bannerT>0){ bannerT-=dt; if(bannerT<=0) banner.style.opacity="0"; }
       if(dungeonFloor){ torchLights.forEach((l,i)=>{ if(l.intensity>0) l.intensity=1.1+Math.sin(t*9+i*2)*0.22+Math.random()*0.08; }); }
+      updateLantern(t);
 
       // 近接インタラクト＆アクションボタンの文脈
       nearTarget=null; let best=1e9;
