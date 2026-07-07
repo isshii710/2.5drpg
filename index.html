@@ -192,6 +192,53 @@
   #shop-close{ margin:10px 14px 16px; padding:12px; border:none; border-radius:10px; cursor:pointer;
     font-family:"Hiragino Mincho ProN",serif; color:var(--ink); letter-spacing:.14em; font-size:15px;
     background:linear-gradient(180deg,#f0dfae,#d3ad4d); box-shadow:0 4px 12px rgba(0,0,0,.4); }
+
+  /* ---- メニューボタン ---- */
+  #menuBtn{ position:fixed; top:calc(env(safe-area-inset-top,0) + 12px); right:calc(env(safe-area-inset-right,0) + 12px);
+    z-index:13; width:42px; height:42px; border-radius:11px; pointer-events:auto; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; font-size:19px; color:var(--parch);
+    background:linear-gradient(180deg, rgba(26,19,40,.86), rgba(20,14,32,.86));
+    border:1px solid var(--gold-dim); box-shadow:0 4px 16px rgba(0,0,0,.4); }
+  #menuBtn:active{ transform:scale(.94); }
+
+  /* ---- メニュー画面（ステータス・装備・セーブ） ---- */
+  #menu{ position:fixed; inset:0; z-index:41; display:none; align-items:center; justify-content:center;
+    background:rgba(8,6,16,.62); backdrop-filter:blur(2px); -webkit-backdrop-filter:blur(2px); }
+  #menu .panel{ width:min(94vw,460px); max-height:86vh; display:flex; flex-direction:column;
+    background:linear-gradient(180deg, rgba(30,22,46,.98), rgba(18,13,30,.99));
+    border:1px solid var(--gold-dim); border-radius:16px; box-shadow:0 16px 50px rgba(0,0,0,.6);
+    overflow:hidden; }
+  #menu .head{ padding:14px 18px; border-bottom:1px solid rgba(230,194,104,.22);
+    font-family:"Hiragino Mincho ProN",serif; color:var(--parch); font-size:18px; letter-spacing:.1em; }
+  #menu-body{ flex:1 1 auto; min-height:0; overflow-y:auto; padding:12px 18px 18px; -webkit-overflow-scrolling:touch; color:var(--parch); }
+  #menu .sec-title{ font-size:12px; color:var(--gold); letter-spacing:.1em; margin:14px 0 6px; }
+  #menu .stat-row{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px; font-size:14px; }
+  #menu .bar{ position:relative; height:13px; border-radius:7px; overflow:hidden; margin-bottom:8px;
+    background:rgba(0,0,0,.45); border:1px solid rgba(230,194,104,.25); }
+  #menu .bar i{ position:absolute; left:0; top:0; bottom:0; display:block; border-radius:7px; }
+  #menu .bar.hp i{ background:linear-gradient(180deg,#ff8f7a,#d84a3a); }
+  #menu .bar.xp i{ background:linear-gradient(180deg,#8fe6d6,#3fb8a6); }
+  #menu .bar span{ position:absolute; inset:0; text-align:center; font-size:10px; line-height:13px; color:#fff; text-shadow:0 1px 1px #000; }
+  #menu .equip-now{ display:flex; gap:10px; padding:10px 12px; margin-bottom:6px; background:rgba(255,255,255,.03);
+    border:1px solid rgba(230,194,104,.18); border-radius:10px; }
+  #menu .equip-now .ic{ font-size:20px; }
+  #menu .equip-now .tx small{ display:block; color:#bcae90; font-size:11px; }
+  #menu .glist .item{ display:flex; align-items:center; gap:10px; padding:9px 12px; margin-bottom:6px;
+    background:rgba(255,255,255,.03); border:1px solid rgba(230,194,104,.18); border-radius:10px; cursor:pointer; }
+  #menu .glist .item.equipped{ border-color:var(--light); box-shadow:inset 0 0 0 1px rgba(127,230,214,.35); }
+  #menu .glist .item .ic{ font-size:18px; width:22px; text-align:center; }
+  #menu .glist .item .nm{ flex:1; font-size:13px; }
+  #menu .glist .item .eq{ font-size:11px; color:var(--light); }
+  #menu-save-row{ display:flex; align-items:center; gap:12px; margin:8px 0 16px; }
+  #menu-save-btn{ padding:10px 18px; border:none; border-radius:10px; cursor:pointer;
+    font-family:"Hiragino Mincho ProN",serif; color:var(--ink); letter-spacing:.1em; font-size:14px;
+    background:linear-gradient(180deg,#f0dfae,#d3ad4d); box-shadow:0 4px 12px rgba(0,0,0,.4); }
+  #menu-save-status{ font-size:12px; color:#bcae90; }
+  #menu-close{ margin:0 14px 16px; padding:12px; border:none; border-radius:10px; cursor:pointer;
+    font-family:"Hiragino Mincho ProN",serif; color:var(--ink); letter-spacing:.14em; font-size:15px;
+    background:linear-gradient(180deg,#f0dfae,#d3ad4d); box-shadow:0 4px 12px rgba(0,0,0,.4); }
+
+  #newgame-link{ color:#cdbff0; font-size:12px; letter-spacing:.05em; margin-top:10px; text-decoration:underline; cursor:pointer; }
 </style>
 </head>
 <body>
@@ -232,6 +279,34 @@
     <button id="shop-close">とじる</button>
   </div></div>
 
+  <div id="menuBtn">☰</div>
+  <div id="menu"><div class="panel">
+    <div class="head">メニュー</div>
+    <div id="menu-body">
+      <div class="sec-title">ステータス</div>
+      <div class="stat-row"><span>Lv <b id="m-lv">1</b></span><span>🪙 <b id="m-gold">0</b></span></div>
+      <div class="bar hp"><i id="m-hp" style="width:100%"></i><span id="m-hptext">40/40</span></div>
+      <div class="bar xp"><i id="m-xp" style="width:0%"></i><span id="m-xptext">0/12</span></div>
+      <div class="stat-row"><span>攻撃力 <b id="m-atk">0</b></span><span>防御力 <b id="m-def">0</b></span></div>
+
+      <div class="sec-title">装備中</div>
+      <div class="equip-now"><div class="ic" id="m-eq-w-ic">🪵</div><div class="tx"><span id="m-eq-w-nm">こんぼう</span><small id="m-eq-w-sub"></small></div></div>
+      <div class="equip-now"><div class="ic" id="m-eq-a-ic">👕</div><div class="tx"><span id="m-eq-a-nm">旅の服</span><small id="m-eq-a-sub"></small></div></div>
+
+      <div class="sec-title">武器（所持品・タップで装備）</div>
+      <div class="glist" id="m-weapon-list"></div>
+      <div class="sec-title">防具（所持品・タップで装備）</div>
+      <div class="glist" id="m-armor-list"></div>
+
+      <div class="sec-title">セーブ</div>
+      <div id="menu-save-row">
+        <button id="menu-save-btn">セーブする</button>
+        <span id="menu-save-status">未セーブ</span>
+      </div>
+    </div>
+    <button id="menu-close">とじる</button>
+  </div></div>
+
   <div id="title">
     <div class="sub">HD-2D FANTASY</div>
     <div class="kanji"><b>光</b>の継承者</div>
@@ -239,6 +314,7 @@
     <div class="sub">はじまりの村 ルミナ</div>
     <button id="start">はじめる</button>
     <div class="hint">スマホは横向き推奨・音は出ません</div>
+    <div id="newgame-link" style="display:none;">はじめから始める（セーブを消去）</div>
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -527,6 +603,7 @@
     // ============================================================
     const solids=[];  // 衝突（円） {x,z,r}
     function addSolid(x,z,r){ solids.push({x,z,r}); }
+    const buildings=[];  // 建物メタ情報 {x,z,rot,doorX,doorZ,r,label,type,interior}
 
     // 地面
     const ground = new THREE.Mesh(
@@ -544,7 +621,7 @@
     }
 
     // --- 家（ローポリ3D：HD-2Dのジオラマ部分） ---
-    function makeHouse(x,z,rot,wallCol,roofCol){
+    function makeHouse(x,z,rot,wallCol,roofCol,opt){
       const g=new THREE.Group(); g.position.set(x,0,z); g.rotation.y=rot;
       const wall=new THREE.Mesh(new THREE.BoxGeometry(4.4,3,4),
         new THREE.MeshLambertMaterial({color:wallCol}));
@@ -569,7 +646,45 @@
       });
       scene.add(g);
       addSolid(x,z,3.0); addShadow(x,z,7);
+      buildings.push(Object.assign({ x,z,rot, doorX:x+Math.sin(rot)*3.4, doorZ:z+Math.cos(rot)*3.4,
+        r:1.5, label:"民家", type:"plain", interior:null }, opt||{}));
       return g;
+    }
+
+    // --- 建物の中（インテリア）：村の外れの遠方に各建物専用の小部屋を用意し、出入り時にテレポートする ---
+    const INTERIOR_BASE_X=500, INTERIOR_GAP=40;
+    function makeInteriorRoom(building, idx){
+      const ox=INTERIOR_BASE_X+idx*INTERIOR_GAP, oz=0;
+      const halfW=4.6, halfD=4.2, doorLocalZ=halfD-0.6;
+      const isShop = building.type==="weapon"||building.type==="armor";
+      const floor=new THREE.Mesh(new THREE.PlaneGeometry(halfW*2,halfD*2),
+        new THREE.MeshLambertMaterial({color:0x8a6a44}));
+      floor.rotation.x=-Math.PI/2; floor.position.set(ox,0.01,oz); scene.add(floor);
+      const outerFloor=new THREE.Mesh(new THREE.PlaneGeometry(40,40),
+        new THREE.MeshBasicMaterial({color:0x0c0810}));
+      outerFloor.rotation.x=-Math.PI/2; outerFloor.position.set(ox,-0.05,oz); scene.add(outerFloor);
+      const wallMat=new THREE.MeshLambertMaterial({color:isShop?0xcdb98a:0xd8c9a0}), wallH=3.0;
+      const backWall=new THREE.Mesh(new THREE.BoxGeometry(halfW*2,wallH,0.2),wallMat);
+      backWall.position.set(ox,wallH/2,oz-halfD); scene.add(backWall);
+      const leftWall=new THREE.Mesh(new THREE.BoxGeometry(0.2,wallH,halfD*2),wallMat);
+      leftWall.position.set(ox-halfW,wallH/2,oz); scene.add(leftWall);
+      const rightWall=new THREE.Mesh(new THREE.BoxGeometry(0.2,wallH,halfD*2),wallMat);
+      rightWall.position.set(ox+halfW,wallH/2,oz); scene.add(rightWall);
+      const rug=new THREE.Mesh(new THREE.PlaneGeometry(halfW*1.1,halfD*0.9),
+        new THREE.MeshBasicMaterial({color:building.type==="weapon"?0x8a4636:(building.type==="armor"?0x3f6f8a:0x6b5a44)}));
+      rug.rotation.x=-Math.PI/2; rug.position.set(ox,0.02,oz+0.3); scene.add(rug);
+      const lamp=new THREE.Mesh(new THREE.SphereGeometry(0.22,10,8),
+        new THREE.MeshBasicMaterial({color:0xffdf9a}));
+      lamp.position.set(ox,wallH-0.5,oz-halfD+0.3); scene.add(lamp);
+      if(isShop){
+        const counterZ=oz-halfD+1.3;
+        const counter=new THREE.Mesh(new THREE.BoxGeometry(2.6,0.9,0.8),
+          new THREE.MeshLambertMaterial({color:0x6b4a2c}));
+        counter.position.set(ox,0.45,counterZ); scene.add(counter);
+        addSolid(ox,counterZ,1.3);
+      }
+      building.interior={ ox, oz, halfW, halfD, doorLocalZ };
+      return building.interior;
     }
 
     // 村レイアウト
@@ -690,15 +805,23 @@
         "無事に帰っておいで。灯りは いつでも点けて待ってるからね。"
       ]});
 
-    // --- 武器屋・防具屋（建物＋店主＋看板アイコン） ---
-    makeHouse(-8.5,-6.5, 0.15, 0xd9b48a, 0x9a4636);   // 武器屋
-    makeHouse( 8.5,-6.5,-0.15, 0xc9b8d0, 0x3f6f8a);   // 防具屋
+    // --- 武器屋・防具屋（建物＋看板アイコン。店主は建物の中にいる） ---
+    makeHouse(-8.5,-6.5, 0.15, 0xd9b48a, 0x9a4636, {label:"武器屋", type:"weapon"});
+    makeHouse( 8.5,-6.5,-0.15, 0xc9b8d0, 0x3f6f8a, {label:"防具屋", type:"armor"});
     const swordSign=makeBillboard(makeSwordIcon(),1.5,1.5); swordSign.position.set(-8.5,2.0,-3.0);
     const shieldSign=makeBillboard(makeShieldIcon(),1.5,1.5); shieldSign.position.set(8.5,2.0,-3.0);
-    addNPC({ x:-8.5,z:-3.2, name:"武器屋 グラン", shop:"weapon",
-      col:{hair:"#4a2f1a",body:"#8a4636",body2:"#6a3428",belt:"#3a2418"} });
-    addNPC({ x:8.5,z:-3.2, name:"防具屋 ミラ", shop:"armor",
-      col:{hair:"#c9b06a",body:"#4f7a9a",body2:"#3a5c76"} });
+
+    // --- 建物内部を生成し、武器屋・防具屋には店主を配置 ---
+    buildings.forEach((b,i)=>{
+      makeInteriorRoom(b,i);
+      if(b.type==="weapon"){
+        addNPC({ x:b.interior.ox, z:b.interior.oz-b.interior.halfD+2.1, name:"武器屋 グラン", shop:"weapon",
+          col:{hair:"#4a2f1a",body:"#8a4636",body2:"#6a3428",belt:"#3a2418"} });
+      } else if(b.type==="armor"){
+        addNPC({ x:b.interior.ox, z:b.interior.oz-b.interior.halfD+2.1, name:"防具屋 ミラ", shop:"armor",
+          col:{hair:"#c9b06a",body:"#4f7a9a",body2:"#3a5c76"} });
+      }
+    });
 
     // 看板（調べられる）
     const signTex=makeSign();
@@ -770,7 +893,8 @@
     function levelUp(){ player.exp-=player.expNext; player.level++;
       player.baseMaxHp+=8; player.baseAtk+=2; player.baseDef+=1; player.expNext=Math.round(player.expNext*1.4);
       deriveStats(); player.hp=player.maxHp;
-      floatText(player.x,player.z,"LEVEL UP! Lv"+player.level,"#8fe6d6",true); showBanner("レベルアップ！","Lv "+player.level); }
+      floatText(player.x,player.z,"LEVEL UP! Lv"+player.level,"#8fe6d6",true); showBanner("レベルアップ！","Lv "+player.level);
+      saveGame(false); }
 
     // --- 演出：浮遊テキスト / ゾーンバナー / 被弾フラッシュ ---
     function floatText(x,z,txt,color,big){ const s=worldToScreen(x,2.4,z); if(!s.vis) return;
@@ -857,11 +981,32 @@
       }
     }
 
+    // --- 建物の出入り ---
+    let indoorHouse=null, savedOutdoor=null;
+    function enterBuilding(b){
+      if(indoorHouse || !b.interior) return;
+      savedOutdoor={ x:player.x, z:player.z };
+      indoorHouse=b;
+      player.x=b.interior.ox; player.z=b.interior.oz+b.interior.doorLocalZ; player.facing="up";
+      showBanner(b.label, "屋内");
+    }
+    function exitBuilding(){
+      if(!indoorHouse) return;
+      player.x=savedOutdoor.x; player.z=savedOutdoor.z; player.facing="down";
+      indoorHouse=null;
+      showBanner("ルミナ村","SAFE ZONE");
+    }
+
     // --- プレイヤー：移動補助・攻撃・回避・被弾 ---
     function movePlayer(dx,dz){
       if(dx && !collides(player.x+dx,player.z,player.r)) player.x+=dx;
       if(dz && !collides(player.x,player.z+dz,player.r)) player.z+=dz;
-      player.x=Math.max(-WORLD,Math.min(WORLD,player.x)); player.z=Math.max(-WORLD,Math.min(WORLD,player.z));
+      if(indoorHouse){ const it=indoorHouse.interior;
+        player.x=Math.max(it.ox-it.halfW+0.4, Math.min(it.ox+it.halfW-0.4, player.x));
+        player.z=Math.max(it.oz-it.halfD+0.3, Math.min(it.oz+it.halfD-0.2, player.z));
+      } else {
+        player.x=Math.max(-WORLD,Math.min(WORLD,player.x)); player.z=Math.max(-WORLD,Math.min(WORLD,player.z));
+      }
     }
     function faceVec(){ switch(player.facing){ case "up":return[0,-1]; case "down":return[0,1]; case "left":return[-1,0]; default:return[1,0]; } }
     function doAttack(){
@@ -933,7 +1078,95 @@
       const it=list[idx];
       if(!owned[idx]){ if(player.gold<it.price) return; player.gold-=it.price; owned[idx]=true; }
       if(shopType==="weapon") player.weapon=idx; else player.armor=idx;
-      deriveStats(); updateHUD(); buildShop(); rebuildHeroTexture();
+      deriveStats(); updateHUD(); buildShop(); rebuildHeroTexture(); saveGame(false);
+    }
+
+    // --- セーブ／オートセーブ（localStorage） ---
+    const SAVE_KEY="lumina_save_v1";
+    let lastSaveAt=0;
+    function updateSaveStatusLabel(){
+      if(!m_saveStatus) return;
+      if(!lastSaveAt){ m_saveStatus.textContent="未セーブ"; return; }
+      const d=new Date(lastSaveAt);
+      const pad=(n)=>String(n).padStart(2,"0");
+      m_saveStatus.textContent="最終セーブ "+pad(d.getHours())+":"+pad(d.getMinutes())+":"+pad(d.getSeconds());
+    }
+    function saveGame(manual){
+      try{
+        const pos = indoorHouse ? savedOutdoor : { x:player.x, z:player.z };
+        const data={ v:1, level:player.level, exp:player.exp, expNext:player.expNext, gold:player.gold,
+          baseMaxHp:player.baseMaxHp, baseAtk:player.baseAtk, baseDef:player.baseDef, hp:player.hp,
+          weapon:player.weapon, armor:player.armor, ownedW:player.ownedW, ownedA:player.ownedA,
+          x:pos.x, z:pos.z, savedAt:Date.now() };
+        localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+        lastSaveAt=data.savedAt; updateSaveStatusLabel();
+        if(manual) floatText(player.x, player.z, "セーブしました", "#8fe6d6");
+      }catch(e){ if(manual) floatText(player.x, player.z, "セーブに失敗しました", "#ff7a6a"); }
+    }
+    function hasSaveData(){ try{ return !!localStorage.getItem(SAVE_KEY); }catch(e){ return false; } }
+    function clearSaveData(){ try{ localStorage.removeItem(SAVE_KEY); }catch(e){} lastSaveAt=0; }
+    function loadGame(){
+      try{
+        const raw=localStorage.getItem(SAVE_KEY); if(!raw) return false;
+        const d=JSON.parse(raw);
+        Object.assign(player,{ level:d.level, exp:d.exp, expNext:d.expNext, gold:d.gold,
+          baseMaxHp:d.baseMaxHp, baseAtk:d.baseAtk, baseDef:d.baseDef,
+          weapon:d.weapon||0, armor:d.armor||0, ownedW:d.ownedW||{0:true}, ownedA:d.ownedA||{0:true},
+          x:(typeof d.x==="number")?d.x:0, z:(typeof d.z==="number")?d.z:7 });
+        deriveStats();
+        player.hp=(typeof d.hp==="number")?Math.min(d.hp,player.maxHp):player.maxHp;
+        lastSaveAt=d.savedAt||0;
+        rebuildHeroTexture(); updateHUD();
+        return true;
+      }catch(e){ return false; }
+    }
+
+    // --- メニュー（ステータス・装備・セーブ） ---
+    let menuOpen=false;
+    const menuEl=document.getElementById("menu"), menuBtn=document.getElementById("menuBtn");
+    const m_lv=document.getElementById("m-lv"), m_gold=document.getElementById("m-gold"),
+          m_hp=document.getElementById("m-hp"), m_hptext=document.getElementById("m-hptext"),
+          m_xp=document.getElementById("m-xp"), m_xptext=document.getElementById("m-xptext"),
+          m_atk=document.getElementById("m-atk"), m_def=document.getElementById("m-def"),
+          m_eqWIc=document.getElementById("m-eq-w-ic"), m_eqWNm=document.getElementById("m-eq-w-nm"), m_eqWSub=document.getElementById("m-eq-w-sub"),
+          m_eqAIc=document.getElementById("m-eq-a-ic"), m_eqANm=document.getElementById("m-eq-a-nm"), m_eqASub=document.getElementById("m-eq-a-sub"),
+          m_wlist=document.getElementById("m-weapon-list"), m_alist=document.getElementById("m-armor-list"),
+          m_saveBtn=document.getElementById("menu-save-btn"), m_saveStatus=document.getElementById("menu-save-status");
+    function openMenu(){ menuOpen=true; menuEl.style.display="flex"; updateMenu(); }
+    function closeMenu(){ menuOpen=false; menuEl.style.display="none"; }
+    menuBtn.addEventListener("click",()=>{ if(menuOpen) closeMenu(); else if(!convo && !shopOpen) openMenu(); });
+    document.getElementById("menu-close").addEventListener("click",closeMenu);
+    m_saveBtn.addEventListener("click",()=>saveGame(true));
+    function menuEquip(kind, idx){
+      if(kind==="weapon"){ if(!player.ownedW[idx]) return; player.weapon=idx; }
+      else { if(!player.ownedA[idx]) return; player.armor=idx; }
+      deriveStats(); updateHUD(); rebuildHeroTexture(); updateMenu(); saveGame(false);
+    }
+    function buildGearList(el, list, owned, equippedIdx, kind){
+      el.innerHTML="";
+      list.forEach((it,idx)=>{
+        if(!owned[idx]) return;
+        const row=document.createElement("div");
+        row.className="item"+(idx===equippedIdx?" equipped":"");
+        const stat=kind==="weapon" ? "攻撃+"+it.atk : "防御+"+it.def+"・HP+"+it.hp;
+        row.innerHTML='<div class="ic">'+it.ic+'</div><div class="nm">'+it.name+'</div><div class="eq">'+(idx===equippedIdx?"装備中":stat)+'</div>';
+        row.addEventListener("click",()=>menuEquip(kind, idx));
+        el.appendChild(row);
+      });
+    }
+    function updateMenu(){
+      m_lv.textContent=player.level; m_gold.textContent=player.gold;
+      m_hp.style.width=Math.max(0,player.hp)/player.maxHp*100+"%";
+      m_hptext.textContent=Math.max(0,Math.ceil(player.hp))+"/"+player.maxHp;
+      m_xp.style.width=(player.exp/player.expNext*100)+"%";
+      m_xptext.textContent=player.exp+"/"+player.expNext;
+      m_atk.textContent=player.atk; m_def.textContent=player.def;
+      const w=WEAPONS[player.weapon], a=ARMORS[player.armor];
+      m_eqWIc.textContent=w.ic; m_eqWNm.textContent=w.name; m_eqWSub.textContent="攻撃+"+w.atk+"／"+w.desc;
+      m_eqAIc.textContent=a.ic; m_eqANm.textContent=a.name; m_eqASub.textContent="防御+"+a.def+"・HP+"+a.hp+"／"+a.desc;
+      buildGearList(m_wlist, WEAPONS, player.ownedW, player.weapon, "weapon");
+      buildGearList(m_alist, ARMORS, player.ownedA, player.armor, "armor");
+      updateSaveStatusLabel();
     }
 
     // 初期化：ステータス確定＆フィールドに初期モンスター
@@ -1013,9 +1246,14 @@
     let nearTarget=null;
     function tryAct(){
       if(convo){ advanceConvo(); return; }
-      if(shopOpen) return;
-      if(nearTarget){ if(nearTarget.shop) openShop(nearTarget.shop, nearTarget.name);
-                      else openConvo(nearTarget.name, nearTarget.lines); return; }
+      if(shopOpen || menuOpen) return;
+      if(nearTarget){
+        if(nearTarget.type==="door"){ enterBuilding(nearTarget.building); return; }
+        if(nearTarget.type==="exit"){ exitBuilding(); return; }
+        if(nearTarget.shop) openShop(nearTarget.shop, nearTarget.name);
+        else openConvo(nearTarget.name, nearTarget.lines);
+        return;
+      }
       doAttack();
     }
     actBtn.addEventListener("pointerdown",e=>{ e.preventDefault(); tryAct(); });
@@ -1049,7 +1287,7 @@
       player.dodgeCd=Math.max(0,player.dodgeCd-dt);
       player.iframes=Math.max(0,player.iframes-dt);
 
-      const canMove = !convo && !shopOpen && !player.dead;
+      const canMove = !convo && !shopOpen && !menuOpen && !player.dead;
       const walking = canMove && moving;
       if(walking){
         const sp=player.speed*dt;
@@ -1091,36 +1329,44 @@
       const cp=camera.position;
       for(const b of billboards){ b.rotation.y=Math.atan2(cp.x-b.position.x, cp.z-b.position.z); }
 
-      // 戦闘・フィールド更新
+      // 戦闘・フィールド更新（屋内では魔物との接触判定に届かないため実質無害）
       updateMonsters(dt,t);
       updateSlashes(dt);
-      spawnT-=dt; if(spawnT<=0){ spawnT=2.4; if(dist0(player.x,player.z)>FIELD_R-2) spawnMonster(); }
-      // 村での自然回復
-      if(dist0(player.x,player.z)<FIELD_R && !player.dead && player.hp<player.maxHp){
+      spawnT-=dt; if(spawnT<=0){ spawnT=2.4; if(!indoorHouse && dist0(player.x,player.z)>FIELD_R-2) spawnMonster(); }
+      // 村・屋内での自然回復
+      const safeZone = !!indoorHouse || dist0(player.x,player.z)<FIELD_R;
+      if(safeZone && !player.dead && player.hp<player.maxHp){
         player.hp=Math.min(player.maxHp, player.hp+9*dt); updateHUD(); }
-      // ゾーン表示切替
-      const nowField = dist0(player.x,player.z)>FIELD_R;
+      // ゾーン表示切替（屋内にいる間は切り替えない）
+      const nowField = !indoorHouse && dist0(player.x,player.z)>FIELD_R;
       if(nowField!==inField){ inField=nowField;
         if(inField) showBanner("ルミナ郊外","FIELD ・ 魔物出現"); else showBanner("ルミナ村","SAFE ZONE"); }
       if(bannerT>0){ bannerT-=dt; if(bannerT<=0) banner.style.opacity="0"; }
 
       // 近接インタラクト＆アクションボタンの文脈
       nearTarget=null; let best=1e9;
-      const all=npcs.concat(examinables.map(e=>({x:e.x,z:e.z,r:e.r,name:e.name,lines:e.lines,shop:null})));
+      let all=npcs.concat(examinables.map(e=>({x:e.x,z:e.z,r:e.r,name:e.name,lines:e.lines,shop:null})));
+      if(indoorHouse){
+        const it=indoorHouse.interior;
+        all=all.concat([{ x:it.ox, z:it.oz+it.doorLocalZ, r:1.3, name:"出口", type:"exit" }]);
+      } else {
+        all=all.concat(buildings.map(b=>({ x:b.doorX, z:b.doorZ, r:b.r, name:b.label, type:"door", building:b })));
+      }
       for(const o of all){ const dx=player.x-o.x,dz=player.z-o.z; const d=dx*dx+dz*dz;
         if(d<o.r*o.r && d<best){ best=d; nearTarget=o; } }
       if(convo){ actBtn.textContent="つぎへ"; actBtn.classList.remove("combat"); promptEl.style.display="none"; }
-      else if(shopOpen){ promptEl.style.display="none"; }
+      else if(shopOpen || menuOpen){ promptEl.style.display="none"; }
       else if(nearTarget){
         actBtn.classList.add("show"); actBtn.classList.remove("combat");
-        actBtn.textContent = nearTarget.shop ? "みせ" : (examinables.some(e=>e.name===nearTarget.name)?"しらべる":"はなす");
+        actBtn.textContent = nearTarget.type==="door" ? "はいる" : nearTarget.type==="exit" ? "でる"
+          : nearTarget.shop ? "みせ" : (examinables.some(e=>e.name===nearTarget.name)?"しらべる":"はなす");
         const s=worldToScreen(nearTarget.x,2.6,nearTarget.z);
         if(s.vis){ promptEl.style.display="block"; promptEl.style.left=s.x+"px"; promptEl.style.top=s.y+"px"; promptEl.textContent="！"; }
       } else {
         actBtn.classList.add("show","combat"); actBtn.textContent="こうげき"; promptEl.style.display="none";
       }
       // 回避ボタン（フィールドでのみ）
-      dodgeBtn.style.display = (inField && !convo && !shopOpen && !player.dead) ? "flex" : "none";
+      dodgeBtn.style.display = (inField && !convo && !shopOpen && !menuOpen && !player.dead) ? "flex" : "none";
       dodgeBtn.classList.toggle("cool", player.dodgeCd>0);
 
       renderer.render(scene,camera);
@@ -1150,16 +1396,27 @@
       renderer.setSize(innerWidth,innerHeight); });
 
     // ============================================================
-    //  開始
+    //  開始（セーブがあれば「つづきから」を選べる）
     // ============================================================
-    document.getElementById("start").addEventListener("click",()=>{
+    const startBtn=document.getElementById("start"), newgameLink=document.getElementById("newgame-link");
+    let willContinue=false;
+    if(hasSaveData()){ startBtn.textContent="つづきから"; newgameLink.style.display="block"; willContinue=true; }
+    newgameLink.addEventListener("click",()=>{
+      clearSaveData(); willContinue=false;
+      startBtn.textContent="はじめる"; newgameLink.style.display="none";
+    });
+    startBtn.addEventListener("click",()=>{
+      if(willContinue) loadGame();
       const t=document.getElementById("title"); t.style.opacity="0";
       setTimeout(()=>{ t.style.display="none"; },800);
-      setQuest("村の人と はなしてみよう（右のボタン）");
+      setQuest(willContinue ? "つづきから はじめよう" : "村の人と はなしてみよう（右のボタン）");
       const hc=document.getElementById("hint-controls"); hc.style.opacity="1";
       setTimeout(()=>{ hc.style.opacity="0"; },5200);
       requestAnimationFrame(loop);
     });
+    // オートセーブ：一定間隔＋離脱時
+    setInterval(()=>saveGame(false), 20000);
+    addEventListener("beforeunload",()=>saveGame(false));
     // 背景を先にレンダリングしておく
     renderer.render(scene,camera);
   })();
