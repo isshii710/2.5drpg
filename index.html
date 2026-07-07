@@ -2173,7 +2173,7 @@
     }
     function closeConvo(){
       convo=null; dialog.style.display="none"; clearInterval(typing);
-      setQuest("森の入口（東の門）を目指そう");
+      questBar.style.opacity="1";
       if(convoNpcName==="巫女 ミント" && !player.villageEndings.arnica &&
          player.quests.v2_trial && player.quests.v2_trial.status==="done"){
         openSpringChoice();
@@ -2185,6 +2185,30 @@
 
     const questBar=document.getElementById("quest"), questText=document.getElementById("quest-text");
     function setQuest(t){ questText.textContent=t; questBar.style.opacity="1"; }
+    // 上部のクエストバーは常に「今やるべきこと」を示す（会話終了後に固定文言で止まってしまわないように毎フレーム更新する）
+    function questDesc(id){ const q=QUESTS.find(q=>q.id===id); return q?q.desc:""; }
+    function currentQuestHint(){
+      if(currentVillageIdx===0){
+        if(player.quests.greet.status==="active") return questDesc("greet");
+        const dungeonIds=["floor1","floor2","floor3","floor4","boss"];
+        if(dungeonIds.some(id=>player.quests[id].status==="locked")) return "門番ダグに話しかけよう";
+        const activeDungeon=dungeonIds.find(id=>player.quests[id].status==="active");
+        if(activeDungeon) return questDesc(activeDungeon);
+        const v2ids=["v2_arrive","v2_greet","v2_trial","v2_choice"];
+        const activeV2=v2ids.find(id=>player.quests[id] && player.quests[id].status==="active");
+        if(activeV2) return questDesc(activeV2);
+        if(VILLAGES[1] && VILLAGES[1].unlocked && VILLAGES[1].unlocked() && !player.villageEndings.arnica) return "東の街道の先に、新たな村がある";
+        return "村の平和を守ろう";
+      }
+      if(currentVillageIdx===1){
+        const v2ids=["v2_greet","v2_trial","v2_choice"];
+        const activeV2=v2ids.find(id=>player.quests[id] && player.quests[id].status==="active");
+        if(activeV2) return questDesc(activeV2);
+        return "アルニカの人々と話してみよう";
+      }
+      return "";
+    }
+    function updateQuestBanner(){ if(!convo) setQuest(currentQuestHint()); }
 
     // ============================================================
     //  入力（バーチャルスティック＋キーボード）
@@ -2512,6 +2536,7 @@
       dodgeBtn.style.display = ((inField||dungeonFloor) && !convo && !shopOpen && !menuOpen && !choiceOpen && !jobSelectOpen && !player.dead) ? "flex" : "none";
       dodgeBtn.classList.toggle("cool", player.dodgeCd>0);
       drawMinimap();
+      updateQuestBanner();
 
       renderer.render(scene,camera);
       requestAnimationFrame(loop);
