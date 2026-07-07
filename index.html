@@ -1928,13 +1928,18 @@
       const md=mmRadius(d);
       return { mx:MM_C+Math.cos(ang)*md, my:MM_C+Math.sin(ang)*md };
     }
+      // 店主NPCは店内の遠隔インスタンス座標にいるため、地図上では店の出入口を目印にする
+    function npcMapPos(n){
+      if(n.shop){ const b=buildings.find(b=>b.type===n.shop); if(b) return { x:b.doorX, z:b.doorZ }; }
+      return { x:n.x, z:n.z };
+    }
     function getQuestTargetPos(){
       if(player.quests.greet.status==="active"){
         const remaining=npcs.filter(n=>GREET_NAMES.has(n.name) && !greetedSet.has(n.name));
         if(remaining.length){
-          let best=remaining[0], bd=Infinity;
-          remaining.forEach(n=>{ const d=(n.x-player.x)**2+(n.z-player.z)**2; if(d<bd){ bd=d; best=n; } });
-          return { x:best.x, z:best.z };
+          let best=npcMapPos(remaining[0]), bd=Infinity;
+          remaining.forEach(n=>{ const p=npcMapPos(n); const d=(p.x-player.x)**2+(p.z-player.z)**2; if(d<bd){ bd=d; best=p; } });
+          return best;
         }
       }
       const dungeonIds=["floor1","floor2","floor3","floor4","boss"];
