@@ -442,13 +442,14 @@
 
     // ---- 人物スプライトシート（4方向 × 3フレーム歩行） ----
     // レイアウト: 列=フレーム(0,1,2) / 行=向き(下,上,左,右) 各セル24x32
-    const CW=24, CH=32, COLS=3, ROWS=4;
+    const CW=24, CH=32, COLS=4, ROWS=4;   // 列: 0/2=歩行スイング, 1=待機, 3=攻撃振り抜き
     const DIR_ROW={ down:0, up:1, left:2, right:3 };
 
     // 1体分のポーズを1セルへ描く（dirは down/up/left、rightは呼び出し側で反転）
     function drawPose(g, ox, oy, P, dir, frame, W){
       const R=(x,y,w,h,c)=>{ if(!c) return; g.fillStyle=c; g.fillRect(ox+x,oy+y,w,h); };
       const sw = frame===0?1 : frame===2?-1 : 0;   // 歩行スイング量(-1/0/1)
+      const atk = frame===3;                        // 攻撃振り抜きフレーム
 
       if(dir==="down" || dir==="up"){
         // マント（背面はやや広め）
@@ -465,18 +466,26 @@
         R(7,12,10,9,P.body); R(8,13,8,2,P.body2); R(7,16,10,2,P.belt);
         // 肩当て（上位防具のみ）
         if(P.shoulder){ R(5,11,3,3,P.shoulder); R(16,11,3,3,P.shoulder); }
-        // 腕（前後にスイング）
-        R(5,12-Math.max(0,-sw),2,7,P.body2); R(5,18-Math.max(0,-sw),2,2,P.skin);
-        R(17,12-Math.max(0,sw),2,7,P.body2); R(17,18-Math.max(0,sw),2,2,P.skin);
-        // 脚＆ブーツ（左右交互に踏み出す）
+        // 腕（攻撃時は前へ突き出し、通常時は歩行スイング）
+        if(atk){
+          R(5,10,2,8,P.body2); R(5,17,2,2,P.skin);
+          R(17,10,2,8,P.body2); R(17,17,2,2,P.skin);
+        } else {
+          R(5,12-Math.max(0,-sw),2,7,P.body2); R(5,18-Math.max(0,-sw),2,2,P.skin);
+          R(17,12-Math.max(0,sw),2,7,P.body2); R(17,18-Math.max(0,sw),2,2,P.skin);
+        }
+        // 脚＆ブーツ（左右交互に踏み出す。攻撃時は前後に踏み込む）
         R(8,21,3,6,P.legs); R(13,21,3,6,P.legs);
         if(frame===0){ R(7,27,3,3,P.boot); R(14,28,3,2,P.boot); }
         else if(frame===2){ R(14,27,3,3,P.boot); R(7,28,3,2,P.boot); }
+        else if(atk){ R(7,28,3,3,P.boot); R(14,27,3,3,P.boot); }
         else { R(8,27,3,3,P.boot); R(13,27,3,3,P.boot); }
-        // 装備中の武器（右手側に構える）
+        // 装備中の武器（右手側に構える。攻撃時は伸ばして白い閃きを添える）
         if(W){ const hx=18, hy=18-Math.max(0,sw);
           if(dir==="down"){
-            R(hx-1, hy-W.len, W.width, W.len, W.col); R(hx-1, hy-W.len, 1, W.len, W.hi);
+            const len=atk?Math.min(W.len+2,16):W.len;
+            R(hx-1, hy-len, W.width, len, W.col); R(hx-1, hy-len, 1, len, W.hi);
+            if(atk) R(hx-2, hy-len-1, W.width+2, 1, "#fff8d8");
             R(hx-2, hy-2, W.width+2, 3, W.hilt);
             if(W.dual){ const hx2=5, hy2=18-Math.max(0,-sw), len2=Math.round(W.len*0.7);
               R(hx2-1, hy2-len2, W.width, len2, W.col); R(hx2-2, hy2-2, W.width+2, 3, W.hilt); }
@@ -495,16 +504,20 @@
         R(9,12,7,9,P.body); R(9,13,5,2,P.body2); R(9,16,7,2,P.belt);
         // 肩当て（上位防具のみ）
         if(P.shoulder){ R(9,11,4,3,P.shoulder); }
-        // 手前の腕（前後スイング）
-        const ax=10-sw*2;
+        // 手前の腕（攻撃時は前へ最大まで突き出す。通常時は歩行スイング）
+        const ax=atk ? 12 : 10-sw*2;
         R(ax,13,2,6,P.body2); R(ax,18,2,2,P.skin);
-        // 脚＆ブーツ（前後に開閉）
+        // 脚＆ブーツ（前後に開閉。攻撃時は踏み込み姿勢）
         if(frame===0){ R(7,22,3,5,P.legs); R(6,27,4,3,P.boot); R(12,22,3,5,P.legs); R(13,27,3,3,P.boot); }
         else if(frame===2){ R(11,21,3,6,P.legs); R(11,27,3,3,P.boot); R(8,23,3,4,P.legs); R(7,28,4,2,P.boot); }
+        else if(atk){ R(11,21,3,6,P.legs); R(11,27,3,3,P.boot); R(8,23,3,4,P.legs); R(7,28,4,2,P.boot); }
         else { R(9,21,3,6,P.legs); R(12,21,3,6,P.legs); R(9,27,3,3,P.boot); R(12,27,3,3,P.boot); }
-        // 装備中の武器（前方の手から突き出す）
+        // 装備中の武器（前方の手から突き出す。攻撃時は切っ先に白い閃きを添える）
         if(W){ const ay=15;
-          R(ax-W.len, ay, W.len, W.width, W.col); R(ax-W.len, ay, W.len, 1, W.hi);
+          // 攻撃時はセルの外へはみ出さないよう長さを安全な範囲に収める
+          const len=atk?Math.min(W.len,ax-1):W.len;
+          R(ax-len, ay, len, W.width, W.col); R(ax-len, ay, len, 1, W.hi);
+          if(atk) R(ax-len-1, ay-1, W.width+2, 1, "#fff8d8");
           R(ax-2, ay-1, 3, W.width+2, W.hilt);
           if(W.dual){ const len2=Math.round(W.len*0.6);
             R(ax-len2, ay+W.width+2, len2, W.width, W.col); }
@@ -674,6 +687,20 @@
     function addShadow(x,z,s){ const m=new THREE.Mesh(new THREE.PlaneGeometry(s,s), shadowMat);
       m.rotation.x=-Math.PI/2; m.position.set(x,0.02,z); scene.add(m); }
 
+    // 出入り口（階段・入口）を平坦にせず、少しでっぱらせて視認しやすくする石段リング
+    function addGateRing(x,z,opt){
+      opt=opt||{};
+      const rim=new THREE.Mesh(new THREE.CylinderGeometry(1.32,1.5,0.32,14), new THREE.MeshLambertMaterial({color:opt.rimCol||0x5c5560}));
+      rim.position.set(x,0.16,z); scene.add(rim);
+      if(opt.hole){
+        const hole=new THREE.Mesh(new THREE.CylinderGeometry(0.95,0.95,0.34,14), new THREE.MeshBasicMaterial({color:0x070409}));
+        hole.position.set(x,0.17,z); scene.add(hole);
+      } else {
+        const top=new THREE.Mesh(new THREE.CylinderGeometry(1.05,1.05,0.06,14), new THREE.MeshLambertMaterial({color:opt.topCol||0x746a56}));
+        top.position.set(x,0.35,z); scene.add(top);
+      }
+    }
+
     // ============================================================
     //  ワールド構築
     // ============================================================
@@ -766,8 +793,9 @@
     // 村レイアウト
     const roofs=[0xb5533a,0x3f7d78,0xa8823a,0x8a4a6a,0x556f9a];
     const walls=[0xe8d3a8,0xdfc79a,0xead9b0];
+    // 武器屋(-8.5,-6.5)・防具屋(8.5,-6.5)と重ならないよう、最初の2軒は離して配置
     const houses=[
-      [-11,-9, .5], [ 11,-8,-.5], [-13, 5,-.4],
+      [-13,-13, .5], [ 13,-13,-.5], [-13, 5,-.4],
       [ 12, 6, .4], [ 0,-14, 0], [-4, 12, .2], [ 7, 13,-.2]
     ];
     houses.forEach((h,i)=>makeHouse(h[0],h[1],h[2],walls[i%walls.length],roofs[i%roofs.length],
@@ -1014,7 +1042,7 @@
       hp:40, maxHp:40, atk:0, def:0,
       weapon:0, armor:0, ownedW:{0:true}, ownedA:{0:true},
       accessory:0, ownedAcc:{0:true}, potions:0,
-      iframes:0, dodgeCd:0, attackCd:0, dash:null, knock:null, dead:false
+      iframes:0, dodgeCd:0, attackCd:0, attackAnimT:0, dash:null, knock:null, dead:false
     });
     function deriveStats(){ const w=WEAPONS[player.weapon], a=ARMORS[player.armor];
       player.maxHp=player.baseMaxHp+a.hp; player.atk=player.baseAtk+w.atk; player.def=player.baseDef+a.def;
@@ -1160,11 +1188,22 @@
       for(let i=monsters.length-1;i>=0;i--){ const m=monsters[i];
         const dx=player.x-m.x, dz=player.z-m.z, d=Math.hypot(dx,dz)||0.0001;
         m.x+=m.vx*dt; m.z+=m.vz*dt; m.vx*=0.85; m.vz*=0.85;   // ノックバック減衰
-        m.atkCd-=dt; let mvx=0;
+        m.atkCd-=dt; let mvx=0, moving=false;
         if(!pInVillage && !player.dead && d<m.T.aggro){
-          if(d>m.T.atkRange){ const sp=m.T.speed*dt; m.x+=dx/d*sp; m.z+=dz/d*sp; mvx=dx; }
-          if(d<m.T.atkRange+0.3 && m.atkCd<=0){ m.atkCd=1.1; m.x+=dx/d*0.2; m.z+=dz/d*0.2; playerHurt(m.T.atk,m.x,m.z); }
-        } else { m.ph+=dt; m.x+=Math.cos(m.ph)*0.25*dt; m.z+=Math.sin(m.ph*0.7)*0.25*dt; }
+          if(d>m.T.atkRange){
+            m.winding=false;
+            const sp=m.T.speed*dt; m.x+=dx/d*sp; m.z+=dz/d*sp; mvx=dx; moving=true;
+          } else if(m.atkCd<=0){
+            if(!m.winding){ m.winding=true; m.windupT=0.26; }         // 攻撃の予備動作（溜め）
+            else {
+              m.windupT-=dt;
+              if(m.windupT<=0){                                        // 溜め終了＝踏み込んで攻撃
+                m.winding=false; m.atkCd=1.1; m.flashT=0.16;
+                m.x+=dx/d*0.25; m.z+=dz/d*0.25; playerHurt(m.T.atk,m.x,m.z);
+              }
+            }
+          }
+        } else { m.winding=false; m.ph+=dt; m.x+=Math.cos(m.ph)*0.25*dt; m.z+=Math.sin(m.ph*0.7)*0.25*dt; moving=true; }
         if(m.bounds){
           m.x=Math.max(m.bounds.minX,Math.min(m.bounds.maxX,m.x)); m.z=Math.max(m.bounds.minZ,Math.min(m.bounds.maxZ,m.z));
         } else {
@@ -1172,9 +1211,24 @@
           m.x=Math.max(-WORLD,Math.min(WORLD,m.x)); m.z=Math.max(-WORLD,Math.min(WORLD,m.z));
         }
         if(m.hurtT>0){ m.hurtT-=dt; if(m.hurtT<=0) m.mesh.material.color.setRGB(1,1,1); }
+        if(m.flashT>0){ m.flashT-=dt; if(m.flashT<=0 && m.hurtT<=0) m.mesh.material.color.setRGB(1,1,1); }
         if(Math.abs(mvx)>0.001) m.face = mvx<0?-1:1;
-        const bob=Math.abs(Math.sin(t*4+m.ph))*0.09;
-        m.mesh.position.set(m.x,bob,m.z); m.mesh.scale.x=m.face; m.sh.position.set(m.x,0.03,m.z);
+        // 歩き：伸縮（スクワッシュ＆ストレッチ）で足取りを表現。攻撃：溜め→踏み込みのモーション
+        m.strideT=(m.strideT||0) + (moving?dt*(5.5+m.T.speed*1.1):0);
+        const stride=Math.sin(m.strideT);
+        let bob, sx=m.face, sy=1, offX=0, offZ=0;
+        if(m.flashT>0){
+          const k=m.flashT/0.16; bob=0.05; sy=1-k*0.22; sx=m.face*(1+k*0.22);
+          offX=dx/d*k*0.18; offZ=dz/d*k*0.18;
+          if(m.hurtT<=0) m.mesh.material.color.setRGB(1,0.86,0.55);
+        } else if(m.winding){
+          const k=1-m.windupT/0.26; bob=0.02; sy=1-k*0.16; sx=m.face*(1+k*0.05);
+          offX=-dx/d*k*0.12; offZ=-dz/d*k*0.12;
+          if(m.hurtT<=0) m.mesh.material.color.setRGB(1,0.92,0.8);
+        } else if(moving){
+          bob=Math.abs(stride)*0.1; sy=1-Math.abs(stride)*0.05; sx=m.face*(1+Math.abs(stride)*0.035);
+        } else { bob=Math.abs(Math.sin(t*4+m.ph))*0.09; }
+        m.mesh.position.set(m.x+offX,bob,m.z+offZ); m.mesh.scale.set(sx,sy,1); m.sh.position.set(m.x,0.03,m.z);
         if(m.hpShowT>0){ m.hpShowT-=dt; const s=worldToScreen(m.x,m.T.h+0.5,m.z);
           if(s.vis && m.hpShowT>0){ m.hpEl.style.display="block"; m.hpEl.style.left=s.x+"px"; m.hpEl.style.top=s.y+"px";
             m.hpEl.firstChild.style.width=Math.max(0,m.hp)/m.maxHp*100+"%"; } else m.hpEl.style.display="none"; }
@@ -1204,7 +1258,7 @@
     //  ダンジョン（灯火の地下遺跡）
     // ============================================================
     const DUNGEON_BASE_X=1000, DUNGEON_GAP=60, DUNGEON_FLOORS_TOTAL=4;
-    let dungeonFloor=0, dungeonReturnPos=null, dungeonBossDefeated=false;
+    let dungeonFloor=0, dungeonReturnPos=null, dungeonBossDefeated=false, transitionCooldown=0;
     const dungeonRooms=[], dungeonChests=[];
     // セーブ有無をここで先読みし、以前に倒したボスは再出現させない
     let initialBossDefeated=false;
@@ -1231,13 +1285,13 @@
     const TORCH_COUNT=3, torchLights=[], torchFlames=[];
     const flameTex=makeFlameTex();
     for(let i=0;i<TORCH_COUNT;i++){
-      const pl=new THREE.PointLight(0xff9a4d,0,10,2); pl.position.set(0,-40,0); scene.add(pl); torchLights.push(pl);
+      const pl=new THREE.PointLight(0xff9a4d,0,14,1.5); pl.position.set(0,-40,0); scene.add(pl); torchLights.push(pl);
       const spr=makeBillboard(flameTex,0.5,0.8); spr.visible=false; torchFlames.push(spr);
     }
     function placeTorches(spots){
       torchLights.forEach((l,i)=>{
         const p=spots[i];
-        if(p){ l.position.set(p.x,p.y,p.z); l.intensity=1.2;
+        if(p){ l.position.set(p.x,p.y,p.z); l.intensity=2.8;
           torchFlames[i].position.set(p.x,p.y-0.35,p.z); torchFlames[i].visible=true; }
         else { l.intensity=0; torchFlames[i].visible=false; }
       });
@@ -1245,13 +1299,13 @@
     function hideTorches(){ torchLights.forEach(l=>l.intensity=0); torchFlames.forEach(s=>s.visible=false); }
 
     // ランタン：装備して暗い場所（ダンジョン）にいる間、プレイヤーの足元を照らす
-    const lanternLight=new THREE.PointLight(0xffcf8a,0,7.5,2); lanternLight.position.set(0,-40,0); scene.add(lanternLight);
+    const lanternLight=new THREE.PointLight(0xffcf8a,0,10,1.5); lanternLight.position.set(0,-40,0); scene.add(lanternLight);
     const lanternGlow=makeBillboard(flameTex,0.42,0.6); lanternGlow.visible=false; lanternGlow.material.color.setHex(0xffe6b0);
     function updateLantern(t){
       const lit = player.accessory===1 && dungeonFloor>0 && !player.dead;
       if(lit){
         lanternLight.position.set(player.x, 1.5, player.z);
-        lanternLight.intensity=1.35+Math.sin(t*7)*0.12;
+        lanternLight.intensity=2.5+Math.sin(t*7)*0.2;
         lanternGlow.visible=true; lanternGlow.position.set(player.x+0.35, 1.25, player.z+0.1);
       } else { lanternLight.intensity=0; lanternGlow.visible=false; }
     }
@@ -1327,9 +1381,12 @@
       let stairsDown=null;
       if(floor<DUNGEON_FLOORS_TOTAL){
         const sx=ox, sz=oz-halfD+1.4;
-        const holeMesh=makeBillboard(stairsTex,1.4,1.2); holeMesh.position.set(sx,0,sz);
+        addGateRing(sx,sz,{rimCol:0x5c5560,hole:true});
+        const holeMesh=makeBillboard(stairsTex,1.4,1.2); holeMesh.position.set(sx,0.02,sz);
         stairsDown={x:sx,z:sz,r:1.5};
       }
+      // 地上/前階層への出口（部屋の入口）も石段ででっぱらせて目印にする
+      addGateRing(ox, oz+entryZ, {rimCol:0x6b6250,hole:false});
       const room={ ox, oz, halfW, halfD, entryZ, torchSpots, chest, stairsDown, floor };
       dungeonRooms[idx]=room;
       const mult=1+(floor-1)*0.55;
@@ -1345,6 +1402,14 @@
     const caveTex=makeCaveIcon();
     const caveMesh=makeBillboard(caveTex,4.4,3.8); caveMesh.position.set(0,0,-42);
     addSolid(0,-42,1.8); addShadow(0,-42,4);
+    // 入口をでっぱらせる岩の柱と踏み段
+    const caveRockMat=new THREE.MeshLambertMaterial({color:0x5a5048});
+    [[-2.5,-41.4,0.7,2.6],[2.5,-41.4,0.75,2.9]].forEach(p=>{
+      const rock=new THREE.Mesh(new THREE.CylinderGeometry(p[2]*0.7,p[2],p[3],7),caveRockMat);
+      rock.position.set(p[0],p[3]/2,p[1]); scene.add(rock); addSolid(p[0],p[1],p[2]*0.9);
+    });
+    const caveStep=new THREE.Mesh(new THREE.BoxGeometry(3.6,0.3,1.2), new THREE.MeshLambertMaterial({color:0x6b6058}));
+    caveStep.position.set(0,0.15,-40.2); scene.add(caveStep);
     const dungeonEntrance={ x:0, z:-42+2.6, r:1.6, label:"灯火の地下遺跡" };
 
     function goToDungeonFloor(floor){
@@ -1355,6 +1420,7 @@
       setZoneVisuals("dungeon");
       showBanner("地下遺跡 "+floor+"階", floor>=DUNGEON_FLOORS_TOTAL?"最深部・何かの気配":"");
       progressQuest("floor"+floor,1);
+      transitionCooldown=0.8;   // 移動直後に入口/階段を踏んで即座に戻ってしまわないように
     }
     function enterDungeon(){
       if(dungeonFloor || indoorHouse) return;
@@ -1366,6 +1432,7 @@
       player.x=dungeonReturnPos.x; player.z=dungeonReturnPos.z; player.facing="down";
       hideTorches(); setZoneVisuals("outdoor");
       showBanner("ルミナ郊外","FIELD ・ 魔物出現");
+      transitionCooldown=0.8;
     }
     function goDungeonDown(){ if(!dungeonFloor || dungeonFloor>=DUNGEON_FLOORS_TOTAL) return; goToDungeonFloor(dungeonFloor+1); }
     function goDungeonUp(){ if(!dungeonFloor) return; if(dungeonFloor===1){ exitDungeonToSurface(); return; } goToDungeonFloor(dungeonFloor-1); }
@@ -1390,6 +1457,7 @@
     function doAttack(){
       if(player.dead || player.attackCd>0) return;
       const w=WEAPONS[player.weapon]; player.attackCd=w.cd;
+      player.attackAnimT=Math.min(0.22, w.cd*0.85);   // 攻撃の振り抜きポーズを短く見せる
       const [fx,fz]=faceVec(); const fa=Math.atan2(fx,fz);
       spawnSlash(player.x+fx*1.2, player.z+fz*1.2);
       for(const m of monsters.slice()){
@@ -1785,9 +1853,6 @@
       if(nearTarget){
         if(nearTarget.type==="door"){ enterBuilding(nearTarget.building); return; }
         if(nearTarget.type==="exit"){ exitBuilding(); return; }
-        if(nearTarget.type==="dungeonEntrance"){ enterDungeon(); return; }
-        if(nearTarget.type==="stairsDown"){ goDungeonDown(); return; }
-        if(nearTarget.type==="stairsUp"){ goDungeonUp(); return; }
         if(nearTarget.type==="chest"){ openChest(nearTarget.chest); return; }
         if(GREET_NAMES.has(nearTarget.name) && !greetedSet.has(nearTarget.name)){
           greetedSet.add(nearTarget.name); progressQuest("greet",1); }
@@ -1828,6 +1893,7 @@
 
       // 各種クールダウン
       player.attackCd=Math.max(0,player.attackCd-dt);
+      player.attackAnimT=Math.max(0,player.attackAnimT-dt);
       player.dodgeCd=Math.max(0,player.dodgeCd-dt);
       player.iframes=Math.max(0,player.iframes-dt);
 
@@ -1847,8 +1913,9 @@
       if(player.knock){ player.knock.t-=dt; movePlayer(player.knock.vx*dt, player.knock.vz*dt);
         player.knock.vx*=0.8; player.knock.vz*=0.8; if(player.knock.t<=0) player.knock=null; }
 
-      // 主人公：向き＆歩行フレーム更新（回避中は点滅で無敵表現）
-      stepAnim(hero.userData.anim, player.facing, walking||!!player.dash, dt);
+      // 主人公：向き＆歩行フレーム更新（回避中は点滅で無敵表現、攻撃中は振り抜きポーズ）
+      if(player.attackAnimT>0) setCell(hero.userData.anim, player.facing, 3);
+      else stepAnim(hero.userData.anim, player.facing, walking||!!player.dash, dt);
       hero.material.opacity = player.iframes>0 ? (Math.sin(t*40)>0?0.4:0.9) : 1.0;
       hero.material.transparent = true;
       const bob=moving?Math.abs(Math.sin(player.walkT))*0.08:Math.sin(t*2)*0.02;
@@ -1876,7 +1943,8 @@
       // 戦闘・フィールド更新（屋内では魔物との接触判定に届かないため実質無害）
       updateMonsters(dt,t);
       updateSlashes(dt);
-      spawnT-=dt; if(spawnT<=0){ spawnT=2.4; if(!indoorHouse && !dungeonFloor && dist0(player.x,player.z)>FIELD_R-2) spawnMonster(); }
+      // 魔物は屋外にいる間、定期的にランダムな位置へ湧く（村にいても裏でタイマーは進む）
+      spawnT-=dt; if(spawnT<=0){ spawnT=2.4; if(!indoorHouse && !dungeonFloor) spawnMonster(); }
       // 村・屋内での自然回復（ダンジョンでは回復しない）
       const safeZone = !!indoorHouse || (!dungeonFloor && dist0(player.x,player.z)<FIELD_R);
       if(safeZone && !player.dead && player.hp<player.maxHp){
@@ -1888,8 +1956,23 @@
           if(inField) showBanner("ルミナ郊外","FIELD ・ 魔物出現"); else showBanner("ルミナ村","SAFE ZONE"); }
       }
       if(bannerT>0){ bannerT-=dt; if(bannerT<=0) banner.style.opacity="0"; }
-      if(dungeonFloor){ torchLights.forEach((l,i)=>{ if(l.intensity>0) l.intensity=1.1+Math.sin(t*9+i*2)*0.22+Math.random()*0.08; }); }
+      if(dungeonFloor){ torchLights.forEach((l,i)=>{ if(l.intensity>0) l.intensity=2.8+Math.sin(t*9+i*2)*0.4+Math.random()*0.15; }); }
       updateLantern(t);
+
+      // ダンジョン入口・階段は歩いて踏むだけで自動的に切り替わる（攻撃ボタンと場所を取り合わないように）
+      transitionCooldown=Math.max(0,transitionCooldown-dt);
+      if(transitionCooldown<=0 && !convo && !shopOpen && !menuOpen && !player.dead){
+        if(!indoorHouse && !dungeonFloor){
+          const ddx=player.x-dungeonEntrance.x, ddz=player.z-dungeonEntrance.z;
+          if(ddx*ddx+ddz*ddz < dungeonEntrance.r*dungeonEntrance.r) enterDungeon();
+        } else if(dungeonFloor){
+          const room=dungeonRooms[dungeonFloor-1];
+          const ux=room.ox, uz=room.oz+room.entryZ, udx=player.x-ux, udz=player.z-uz;
+          if(udx*udx+udz*udz < 1.4*1.4) goDungeonUp();
+          else if(room.stairsDown){ const sdx=player.x-room.stairsDown.x, sdz=player.z-room.stairsDown.z;
+            if(sdx*sdx+sdz*sdz < room.stairsDown.r*room.stairsDown.r) goDungeonDown(); }
+        }
+      }
 
       // 近接インタラクト＆アクションボタンの文脈
       nearTarget=null; let best=1e9;
@@ -1898,13 +1981,9 @@
         const it=indoorHouse.interior;
         all=all.concat([{ x:it.ox, z:it.oz+it.doorLocalZ, r:1.3, name:"出口", type:"exit" }]);
       } else if(dungeonFloor){
-        const room=dungeonRooms[dungeonFloor-1];
-        all=all.concat([{ x:room.ox, z:room.oz+room.entryZ, r:1.4, name:(dungeonFloor===1?"地上へ":"のぼる"), type:"stairsUp" }]);
-        if(room.stairsDown) all=all.concat([{ x:room.stairsDown.x, z:room.stairsDown.z, r:room.stairsDown.r, name:"下へ", type:"stairsDown" }]);
         all=all.concat(dungeonChests.filter(c=>!c.opened && c.floor===dungeonFloor).map(c=>({ x:c.x, z:c.z, r:c.r, name:"宝箱", type:"chest", chest:c })));
       } else {
         all=all.concat(buildings.map(b=>({ x:b.doorX, z:b.doorZ, r:b.r, name:b.label, type:"door", building:b })));
-        all=all.concat([{ x:dungeonEntrance.x, z:dungeonEntrance.z, r:dungeonEntrance.r, name:dungeonEntrance.label, type:"dungeonEntrance" }]);
       }
       for(const o of all){ const dx=player.x-o.x,dz=player.z-o.z; const d=dx*dx+dz*dz;
         if(d<o.r*o.r && d<best){ best=d; nearTarget=o; } }
@@ -1913,8 +1992,7 @@
       else if(nearTarget){
         actBtn.classList.add("show"); actBtn.classList.remove("combat");
         actBtn.textContent = nearTarget.type==="door" ? "はいる" : nearTarget.type==="exit" ? "でる"
-          : nearTarget.type==="dungeonEntrance" ? "はいる" : nearTarget.type==="stairsDown" ? "おりる"
-          : nearTarget.type==="stairsUp" ? nearTarget.name : nearTarget.type==="chest" ? "あける"
+          : nearTarget.type==="chest" ? "あける"
           : nearTarget.shop ? "みせ" : (examinables.some(e=>e.name===nearTarget.name)?"しらべる":"はなす");
         const s=worldToScreen(nearTarget.x,2.6,nearTarget.z);
         if(s.vis){ promptEl.style.display="block"; promptEl.style.left=s.x+"px"; promptEl.style.top=s.y+"px"; promptEl.textContent="！"; }
