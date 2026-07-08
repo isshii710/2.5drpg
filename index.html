@@ -144,6 +144,16 @@
     opacity:.92; transition:transform .08s, opacity .15s; }
   #dodge.cool{ opacity:.4; }
   #dodge:active{ transform:scale(.92); }
+  /* ---- スキルボタン ---- */
+  #skillBtn{ position:absolute; right:calc(env(safe-area-inset-right,0) + 204px); bottom:calc(env(safe-area-inset-bottom,0) + 54px);
+    width:60px; height:60px; border-radius:50%; pointer-events:auto; touch-action:none;
+    display:none; align-items:center; justify-content:center; font-family:"Hiragino Mincho ProN",serif;
+    color:#2a1240; font-size:12px;
+    background:radial-gradient(circle at 42% 35%, #e8caff, #a878e0 72%, #7a4fb5);
+    border:2px solid #f0e0ff; box-shadow:0 5px 14px rgba(0,0,0,.5), inset 0 2px 3px rgba(255,255,255,.5);
+    opacity:.92; transition:transform .08s, opacity .15s; }
+  #skillBtn.cool{ opacity:.4; }
+  #skillBtn:active{ transform:scale(.92); }
   /* アクションボタンの戦闘モード配色 */
   #act.combat{ background:radial-gradient(circle at 42% 35%, #ffb27a, #e0663a 68%, #b5432a); border-color:#ffd7bd; color:#2a1208; }
 
@@ -281,7 +291,9 @@
   #menu .glist .item.equipped{ border-color:var(--light); box-shadow:inset 0 0 0 1px rgba(127,230,214,.35); }
   #menu .glist .item .ic{ font-size:18px; width:22px; text-align:center; }
   #menu .glist .item .nm{ flex:1; font-size:13px; }
-  #menu .glist .item .eq{ font-size:11px; color:var(--light); }
+  #menu .glist .item .nm small{ display:block; color:#bcae90; font-size:11px; margin-top:2px; font-weight:normal; }
+  #menu .glist .item .eq{ font-size:11px; color:var(--light); white-space:nowrap; }
+  #menu .glist .item.locked{ opacity:.5; }
   #menu .glist .item.quest{ flex-direction:column; align-items:stretch; gap:3px; cursor:default; }
   #menu .glist .item.quest.locked{ opacity:.45; }
   #menu .glist .item.quest .qhead{ display:flex; justify-content:space-between; align-items:center; gap:8px; }
@@ -360,6 +372,7 @@
   <div id="hud">
     <div id="stick"><div id="knob"></div></div>
     <div id="dodge">回避</div>
+    <div id="skillBtn">わざ</div>
     <div id="act">はなす</div>
   </div>
   <div id="prompt"></div>
@@ -427,6 +440,9 @@
       <div class="sec-title">アクセサリー（所持品・タップで装備）</div>
       <div class="glist" id="m-acc-list"></div>
 
+      <div class="sec-title">スキル（SP <b id="m-sp">0</b>・タップで習得／装備）</div>
+      <div class="glist" id="m-skill-list"></div>
+
       <div class="sec-title">道具</div>
       <div id="menu-potion-row">
         <span id="menu-potion-count">🧪 回復薬 ×0</span>
@@ -481,6 +497,8 @@
         <button class="dbtn" data-act="levelUp">レベルアップ</button>
         <button class="dbtn" data-act="ownAll">武器・防具・アクセを全所持</button>
         <button class="dbtn" data-act="openJobs">転職メニューを開く</button>
+        <button class="dbtn" data-act="addSP">SP +3</button>
+        <button class="dbtn wide" data-act="unlockAllSkills">スキルを全習得</button>
       </div>
 
       <div class="sec-title">時間・天候</div>
@@ -881,6 +899,22 @@
       rect(g,2,10,7,10,"#6b4a2c"); rect(g,1,8,9,4,"#8a6a3a");       // 大こん棒
       rect(g,13,38,7,6,sk2); rect(g,22,38,7,6,sk2);                 // 脚
     }, 40, 46); }
+    // ---- 稀に出る特別なモンスター（金貨・経験値を大量に落とす。すぐ逃げる） ----
+    function makeGoldSlime(){ return pixTex((g)=>{
+      ellip(g,12,15,10,8,"#c9962e"); ellip(g,12,15,10,7,"#f0c948");
+      rect(g,2,17,20,4,"#c9962e");
+      ellip(g,9,11,4,3,"#fff0b0");
+      rect(g,8,13,2,3,"#5a3f0a"); rect(g,14,13,2,3,"#5a3f0a");
+      ellip(g,18,7,1,1,"#fff6d0"); ellip(g,5,9,1,1,"#fff6d0"); ellip(g,15,5,1,1,"#fff6d0"); // きらめき
+    }, 24, 24); }
+    function makeWiseOwl(){ return pixTex((g)=>{
+      ellip(g,12,14,3,5,"#2a3a5f"); ellip(g,20,14,3,5,"#2a3a5f");     // 翼
+      ellip(g,12,13,9,10,"#3a4f7a"); ellip(g,12,13,7,8,"#5a72a8");    // 胴
+      ellip(g,7,9,3,3,"#fff"); ellip(g,17,9,3,3,"#fff");              // 目（白目）
+      ellip(g,7,9,1.4,1.4,"#1a1a2a"); ellip(g,17,9,1.4,1.4,"#1a1a2a"); // 瞳
+      rect(g,11,12,2,2,"#e8c268");                                     // くちばし
+      ellip(g,12,21,4,2,"#e8c268");                                    // 足
+    }, 24, 24); }
 
     // ---- フィールドの岩 ----
     function makeRock(){ return pixTex((g)=>{
@@ -1459,6 +1493,7 @@
       weapon:0, armor:0, ownedW:{0:true}, ownedA:{0:true},
       accessory:0, ownedAcc:{0:true}, potions:0,
       job:0, villageEndings:{}, corruptionPower:false,
+      sp:0, skillsUnlocked:{}, equippedSkill:null, skillCd:0, atkBuffT:0,
       iframes:0, dodgeCd:0, attackCd:0, attackAnimT:0, dash:null, knock:null, dead:false
     });
     // --- 転職システム（固定の職業から選ぶ。ステータス倍率と髪・マントの色が変わる） ---
@@ -1469,6 +1504,51 @@
       { id:"rogue",   name:"盗賊",     ic:"🗡️", desc:"手数で押す、素早い身のこなし。",             atkMul:1.08, defMul:0.9,  hpMul:0.95, cdMul:0.72, rangeBonus:0,   hair:"#2f7d4a", cape:"#234f33" },
       { id:"paladin", name:"聖騎士",   ic:"🛡️", desc:"重い守りで仲間を支える壁役。",               atkMul:0.95, defMul:1.4,  hpMul:1.3,  cdMul:1.15, rangeBonus:0.2, hair:"#cdb35a", cape:"#eae2c8" }
     ];
+    // --- スキル（レベルアップで得るSPを消費して習得。1つを装備し「わざ」ボタンで発動する） ---
+    const SKILLS=[
+      { id:"power", name:"強打",       cost:1, cd:3.0,  ic:"💥", desc:"目の前へ強力な一撃を放つ（威力2.2倍）" },
+      { id:"heal",  name:"回復の光",   cost:1, cd:8.0,  ic:"✨", desc:"HPを最大値の25%回復する" },
+      { id:"whirl", name:"旋風斬り",   cost:2, cd:5.0,  ic:"🌀", desc:"周囲の敵をまとめて攻撃する" },
+      { id:"focus", name:"強化の構え", cost:2, cd:12.0, ic:"🔥", desc:"6秒間、攻撃力が50%上がる" }
+    ];
+    function useSkill(){
+      if(player.dead || !player.equippedSkill || player.skillCd>0) return;
+      const skill=SKILLS.find(s=>s.id===player.equippedSkill); if(!skill) return;
+      player.skillCd=skill.cd;
+      const atkNow=player.atk*(player.atkBuffT>0?1.5:1);
+      if(skill.id==="power"){
+        const [fx,fz]=faceVec(); const fa=Math.atan2(fx,fz), w=WEAPONS[player.weapon];
+        spawnSlash(player.x+fx*1.4, player.z+fz*1.4);
+        for(const m of monsters.slice()){
+          const dx=m.x-player.x, dz=m.z-player.z, d=Math.hypot(dx,dz);
+          if(d>w.range+1.2+m.T.r) continue;
+          let diff=Math.abs(Math.atan2(dx,dz)-fa); if(diff>Math.PI) diff=2*Math.PI-diff;
+          if(diff<=w.arc+0.3){
+            const dmg=Math.max(1,Math.round((atkNow*2.2-m.T.def)*(0.9+Math.random()*0.2)));
+            damageMonster(m,dmg,player.x,player.z);
+          }
+        }
+        floatText(player.x,player.z,"強打！","#ffb347",true);
+      } else if(skill.id==="heal"){
+        const heal=Math.round(player.maxHp*0.25);
+        player.hp=Math.min(player.maxHp,player.hp+heal); updateHUD();
+        floatText(player.x,player.z,"HPが"+heal+"回復した","#8fe6d6",true);
+      } else if(skill.id==="whirl"){
+        spawnSlash(player.x,player.z);
+        for(const m of monsters.slice()){
+          const d=Math.hypot(m.x-player.x,m.z-player.z);
+          if(d>2.6+m.T.r) continue;
+          const dmg=Math.max(1,Math.round((atkNow*1.1-m.T.def)*(0.85+Math.random()*0.3)));
+          damageMonster(m,dmg,player.x,player.z);
+        }
+        floatText(player.x,player.z,"旋風斬り！","#ffb347",true);
+      } else if(skill.id==="focus"){
+        player.atkBuffT=6.0;
+        floatText(player.x,player.z,"攻撃力アップ！","#ff8a5a",true);
+      }
+      if(menuOpen) updateMenu();
+      saveGame(false);
+    }
     function deriveStats(){ const w=WEAPONS[player.weapon], a=ARMORS[player.armor], job=JOBS[player.job||0];
       const corr=player.corruptionPower?5:0;
       player.maxHp=Math.round((player.baseMaxHp+a.hp)*job.hpMul);
@@ -1529,7 +1609,7 @@
           s_hp=document.getElementById("s-hp"), s_hptext=document.getElementById("s-hptext"),
           s_xp=document.getElementById("s-xp"), s_gear=document.getElementById("s-gear"),
           statsEl=document.getElementById("stats"), banner=document.getElementById("banner"),
-          dodgeBtn=document.getElementById("dodge");
+          dodgeBtn=document.getElementById("dodge"), skillBtn=document.getElementById("skillBtn");
     function updateHUD(){
       s_lv.textContent=player.level; s_gold.textContent=player.gold;
       s_hp.style.width=Math.max(0,player.hp)/player.maxHp*100+"%";
@@ -1552,8 +1632,9 @@
     function addExp(n){ player.exp+=n; while(player.exp>=player.expNext) levelUp(); updateHUD(); }
     function levelUp(){ player.exp-=player.expNext; player.level++;
       player.baseMaxHp+=8; player.baseAtk+=2; player.baseDef+=1; player.expNext=Math.round(player.expNext*1.4);
+      player.sp=(player.sp||0)+1;
       deriveStats(); player.hp=player.maxHp;
-      floatText(player.x,player.z,"LEVEL UP! Lv"+player.level,"#8fe6d6",true); showBanner("レベルアップ！","Lv "+player.level);
+      floatText(player.x,player.z,"LEVEL UP! Lv"+player.level,"#8fe6d6",true); showBanner("レベルアップ！","Lv "+player.level+"／SP+1");
       saveGame(false); }
 
     // --- 演出：浮遊テキスト / ゾーンバナー / 被弾フラッシュ ---
@@ -1591,6 +1672,12 @@
       {name:"ダイアウルフ", tex:makeWolf(),   w:2.2,h:1.6, r:0.8, hp:26,  atk:11, def:1, exp:16, gold:8,  speed:3.8, aggro:12, atkRange:1.6},
       {name:"オーガ",       tex:makeOgre(),   w:3.0,h:3.4, r:1.3, hp:120, atk:18, def:6, exp:70, gold:55, speed:1.5, aggro:9,  atkRange:2.1}
     ];
+    // 稀に湧く特別な魔物：ほぼ無害だが、捕まえられれば金貨または経験値を大量に落とす（逃げ足が速い）
+    const RARE_MON_TYPES=[
+      {name:"黄金スライム", tex:makeGoldSlime(), w:1.4,h:1.3, r:0.6, hp:10, atk:0, def:0, exp:20,  gold:220, speed:4.6, aggro:11, atkRange:0, flee:true},
+      {name:"知恵のフクロウ", tex:makeWiseOwl(),  w:1.5,h:1.5, r:0.6, hp:8,  atk:0, def:0, exp:150, gold:25,  speed:5.0, aggro:12, atkRange:0, flee:true}
+    ];
+    const RARE_SPAWN_CHANCE=0.07;
     const monsters=[];
     function pickType(){ const r=Math.random(); return r<0.42?0 : r<0.72?1 : r<0.93?2 : 3; }
     function spawnMonster(){
@@ -1600,9 +1687,11 @@
       do{ const a=Math.random()*7, rr=FIELD_R+4+Math.random()*(FOREST_R-FIELD_R-8);
         x=VILLAGE_ORIGIN.x+Math.cos(a)*rr; z=VILLAGE_ORIGIN.z+Math.sin(a)*rr; tries++;
       }while(tries<14 && (Math.hypot(x-player.x,z-player.z)<14 || dist0(x,z)<FIELD_R+2));
-      const T=MON_TYPES[pickType()];
+      const T = Math.random()<RARE_SPAWN_CHANCE
+        ? RARE_MON_TYPES[(Math.random()*RARE_MON_TYPES.length)|0]
+        : MON_TYPES[pickType()];
       const m=makeBillboard(T.tex,T.w,T.h); m.position.set(x,0,z);
-      const corrupted = VILLAGES[currentVillageIdx] && VILLAGES[currentVillageIdx].corruptedMonsters;
+      const corrupted = !T.flee && VILLAGES[currentVillageIdx] && VILLAGES[currentVillageIdx].corruptedMonsters;
       if(corrupted) m.material.color.setRGB(0.68,0.58,0.92);
       const sh=new THREE.Mesh(new THREE.PlaneGeometry(T.r*2.4,T.r*2.4),shadowMat); sh.rotation.x=-Math.PI/2; sh.position.set(x,0.03,z); scene.add(sh);
       const hpEl=document.createElement("div"); hpEl.className="monhp"; hpEl.innerHTML="<i></i>"; document.body.appendChild(hpEl);
@@ -1631,7 +1720,10 @@
         m.x+=m.vx*dt; m.z+=m.vz*dt; m.vx*=0.85; m.vz*=0.85;   // ノックバック減衰
         m.atkCd-=dt; let mvx=0, moving=false;
         if(!pInVillage && !player.dead && d<m.T.aggro){
-          if(d>m.T.atkRange){
+          if(m.T.flee){
+            m.winding=false;
+            const sp=m.T.speed*dt; m.x-=dx/d*sp; m.z-=dz/d*sp; mvx=-dx; moving=true;
+          } else if(d>m.T.atkRange){
             m.winding=false;
             const sp=m.T.speed*dt; m.x+=dx/d*sp; m.z+=dz/d*sp; mvx=dx; moving=true;
           } else if(m.atkCd<=0){
@@ -1908,12 +2000,13 @@
       player.attackCd=cd;
       player.attackAnimT=Math.min(0.22, cd*0.85);   // 攻撃の振り抜きポーズを短く見せる
       const [fx,fz]=faceVec(); const fa=Math.atan2(fx,fz);
+      const atkNow=player.atk*(player.atkBuffT>0?1.5:1);
       spawnSlash(player.x+fx*1.2, player.z+fz*1.2);
       for(const m of monsters.slice()){
         const dx=m.x-player.x, dz=m.z-player.z, d=Math.hypot(dx,dz);
         if(d>range+m.T.r) continue;
         let diff=Math.abs(Math.atan2(dx,dz)-fa); if(diff>Math.PI) diff=2*Math.PI-diff;
-        if(diff<=w.arc){ let dmg=Math.max(1,Math.round((player.atk-m.T.def)*(0.85+Math.random()*0.3)));
+        if(diff<=w.arc){ let dmg=Math.max(1,Math.round((atkNow-m.T.def)*(0.85+Math.random()*0.3)));
           if(Math.random()<0.1) dmg=Math.round(dmg*1.6); damageMonster(m,dmg,player.x,player.z); }
       }
     }
@@ -2102,6 +2195,7 @@
       debugStatusEl.textContent =
         "現在地: "+v.name+" ／ 座標 ("+player.x.toFixed(1)+", "+player.z.toFixed(1)+")\n"+
         "Lv"+player.level+" HP "+Math.ceil(player.hp)+"/"+player.maxHp+" ／ 🪙"+player.gold+" ／ 職業: "+JOBS[player.job||0].name+"\n"+
+        "SP "+(player.sp||0)+" ／ 装備スキル: "+(player.equippedSkill?SKILLS.find(s=>s.id===player.equippedSkill).name:"なし")+"\n"+
         "地下遺跡ボス撃破: "+(dungeonBossDefeated?"済":"未")+" ／ アルニカの選択: "+(player.villageEndings.arnica||"未選択");
     }
     function forceQuestActive(id){ const st=player.quests[id]; if(st && st.status==="locked") st.status="active"; }
@@ -2135,6 +2229,11 @@
         ACCESSORIES.forEach((a,i)=>player.ownedAcc[i]=true);
         updateHUD(); if(menuOpen) updateMenu(); },
       openJobs:()=>{ closeDebugMenu(); openJobSelect(); },
+      addSP:()=>{ player.sp=(player.sp||0)+3; if(menuOpen) updateMenu(); },
+      unlockAllSkills:()=>{
+        SKILLS.forEach(s=>{ player.skillsUnlocked[s.id]=true; });
+        if(!player.equippedSkill) player.equippedSkill=SKILLS[0].id;
+        if(menuOpen) updateMenu(); },
       time8:()=>{ totalGameHours=Math.floor(totalGameHours/24)*24+8; if(currentZone==="outdoor") applyTimeWeatherLighting(); updateClockHUD(); },
       time13:()=>{ totalGameHours=Math.floor(totalGameHours/24)*24+13; if(currentZone==="outdoor") applyTimeWeatherLighting(); updateClockHUD(); },
       time18:()=>{ totalGameHours=Math.floor(totalGameHours/24)*24+18.5; if(currentZone==="outdoor") applyTimeWeatherLighting(); updateClockHUD(); },
@@ -2171,6 +2270,7 @@
           weapon:player.weapon, armor:player.armor, ownedW:player.ownedW, ownedA:player.ownedA,
           accessory:player.accessory, ownedAcc:player.ownedAcc, potions:player.potions,
           job:player.job, villageEndings:player.villageEndings, corruptionPower:player.corruptionPower,
+          sp:player.sp, skillsUnlocked:player.skillsUnlocked, equippedSkill:player.equippedSkill,
           quests:player.quests, greeted:Array.from(greetedSet), dungeonBossDefeated,
           totalGameHours, weather, currentVillageIdx,
           x:pos.x, z:pos.z, savedAt:Date.now() };
@@ -2190,6 +2290,7 @@
           weapon:d.weapon||0, armor:d.armor||0, ownedW:d.ownedW||{0:true}, ownedA:d.ownedA||{0:true},
           accessory:d.accessory||0, ownedAcc:d.ownedAcc||{0:true}, potions:d.potions||0,
           job:d.job||0, villageEndings:d.villageEndings||{}, corruptionPower:!!d.corruptionPower,
+          sp:d.sp||0, skillsUnlocked:d.skillsUnlocked||{}, equippedSkill:d.equippedSkill||null,
           // 新しく追加されたクエストIDも既定値で持てるよう、既定値に保存分を上書きする形でマージする
           quests:d.quests?Object.assign({},player.quests,d.quests):player.quests,
           x:(typeof d.x==="number")?d.x:0, z:(typeof d.z==="number")?d.z:7 });
@@ -2221,6 +2322,7 @@
           m_eqAccIc=document.getElementById("m-eq-acc-ic"), m_eqAccNm=document.getElementById("m-eq-acc-nm"), m_eqAccSub=document.getElementById("m-eq-acc-sub"),
           m_wlist=document.getElementById("m-weapon-list"), m_alist=document.getElementById("m-armor-list"),
           m_acclist=document.getElementById("m-acc-list"), m_qlist=document.getElementById("m-quest-list"),
+          m_skilllist=document.getElementById("m-skill-list"), m_sp=document.getElementById("m-sp"),
           m_potionCount=document.getElementById("menu-potion-count"), m_potionUse=document.getElementById("menu-potion-use"),
           m_saveBtn=document.getElementById("menu-save-btn"), m_saveStatus=document.getElementById("menu-save-status");
     function openMenu(){ menuOpen=true; menuEl.style.display="flex"; updateMenu(); }
@@ -2245,6 +2347,31 @@
         row.innerHTML='<div class="ic">'+it.ic+'</div><div class="nm">'+it.name+'</div><div class="eq">'+(idx===equippedIdx?"装備中":stat)+'</div>';
         row.addEventListener("click",()=>menuEquip(kind, idx));
         el.appendChild(row);
+      });
+    }
+    function skillListAction(id){
+      const unlocked=!!player.skillsUnlocked[id];
+      if(!unlocked){
+        const skill=SKILLS.find(s=>s.id===id); if(!skill || (player.sp||0)<skill.cost) return;
+        player.sp-=skill.cost; player.skillsUnlocked[id]=true;
+        if(!player.equippedSkill) player.equippedSkill=id;
+      } else {
+        player.equippedSkill=id;
+      }
+      updateMenu(); saveGame(false);
+    }
+    function buildSkillList(){
+      m_sp.textContent=player.sp||0;
+      m_skilllist.innerHTML="";
+      SKILLS.forEach(s=>{
+        const unlocked=!!player.skillsUnlocked[s.id], equipped=player.equippedSkill===s.id;
+        const canUnlock=(player.sp||0)>=s.cost;
+        const row=document.createElement("div");
+        row.className="item"+(equipped?" equipped":"")+((!unlocked&&!canUnlock)?" locked":"");
+        const label = equipped ? "装備中" : unlocked ? "装備する" : "SP"+s.cost+"で習得";
+        row.innerHTML='<div class="ic">'+s.ic+'</div><div class="nm">'+s.name+'<small>'+s.desc+'</small></div><div class="eq">'+label+'</div>';
+        row.addEventListener("click",()=>skillListAction(s.id));
+        m_skilllist.appendChild(row);
       });
     }
     function buildQuestList(){
@@ -2274,6 +2401,7 @@
       buildGearList(m_wlist, WEAPONS, player.ownedW, player.weapon, "weapon");
       buildGearList(m_alist, ARMORS, player.ownedA, player.armor, "armor");
       buildGearList(m_acclist, ACCESSORIES, player.ownedAcc, player.accessory, "accessory");
+      buildSkillList();
       m_potionCount.textContent="🧪 回復薬 ×"+(player.potions||0);
       m_potionUse.disabled = !player.potions || player.hp>=player.maxHp;
       buildQuestList();
@@ -2538,6 +2666,7 @@
     }
     actBtn.addEventListener("pointerdown",e=>{ e.preventDefault(); tryAct(); });
     dodgeBtn.addEventListener("pointerdown",e=>{ e.preventDefault(); doDodge(); });
+    skillBtn.addEventListener("pointerdown",e=>{ e.preventDefault(); useSkill(); });
 
     // ============================================================
     //  当たり判定 & 更新
@@ -2567,6 +2696,8 @@
       player.attackAnimT=Math.max(0,player.attackAnimT-dt);
       player.dodgeCd=Math.max(0,player.dodgeCd-dt);
       player.iframes=Math.max(0,player.iframes-dt);
+      player.skillCd=Math.max(0,(player.skillCd||0)-dt);
+      player.atkBuffT=Math.max(0,(player.atkBuffT||0)-dt);
 
       const canMove = !convo && !shopOpen && !menuOpen && !choiceOpen && !jobSelectOpen && !debugOpen && !player.dead;
       const walking = canMove && moving;
@@ -2686,6 +2817,8 @@
       // 回避ボタン（フィールドでのみ）
       dodgeBtn.style.display = ((inField||dungeonFloor) && !convo && !shopOpen && !menuOpen && !choiceOpen && !jobSelectOpen && !debugOpen && !player.dead) ? "flex" : "none";
       dodgeBtn.classList.toggle("cool", player.dodgeCd>0);
+      skillBtn.style.display = ((inField||dungeonFloor) && player.equippedSkill && !convo && !shopOpen && !menuOpen && !choiceOpen && !jobSelectOpen && !debugOpen && !player.dead) ? "flex" : "none";
+      skillBtn.classList.toggle("cool", player.skillCd>0);
       drawMinimap();
       updateQuestBanner();
 
