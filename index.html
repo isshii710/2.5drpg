@@ -493,7 +493,9 @@
       <div class="row">
         <button class="dbtn" data-act="fullHeal">HP全回復</button>
         <button class="dbtn" data-act="addGold">ゴールド +1000</button>
+        <button class="dbtn" data-act="addGoldBig">ゴールド +10000</button>
         <button class="dbtn" data-act="addExp">経験値 +100</button>
+        <button class="dbtn" data-act="addExpBig">経験値 +1000</button>
         <button class="dbtn" data-act="levelUp">レベルアップ</button>
         <button class="dbtn" data-act="ownAll">武器・防具・アクセを全所持</button>
         <button class="dbtn" data-act="openJobs">転職メニューを開く</button>
@@ -2208,7 +2210,7 @@
       const v=VILLAGES[currentVillageIdx];
       debugStatusEl.textContent =
         "現在地: "+v.name+" ／ 座標 ("+player.x.toFixed(1)+", "+player.z.toFixed(1)+")\n"+
-        "Lv"+player.level+" HP "+Math.ceil(player.hp)+"/"+player.maxHp+" ／ 🪙"+player.gold+" ／ 職業: "+JOBS[player.job||0].name+"\n"+
+        "Lv"+player.level+" HP "+Math.ceil(player.hp)+"/"+player.maxHp+" ／ 🪙"+player.gold+" ／ EXP "+Math.floor(player.exp)+"/"+player.expNext+" ／ 職業: "+JOBS[player.job||0].name+"\n"+
         "SP "+(player.sp||0)+" ／ 装備スキル: "+(player.equippedSkill?SKILLS.find(s=>s.id===player.equippedSkill).name:"なし")+"\n"+
         "地下遺跡ボス撃破: "+(dungeonBossDefeated?"済":"未")+" ／ アルニカの選択: "+(player.villageEndings.arnica||"未選択");
     }
@@ -2236,7 +2238,9 @@
         setArnicaSpringVisual(null); floatText(player.x,player.z,"クエストをリセットした","#e6c268",true); },
       fullHeal:()=>{ player.hp=player.maxHp; updateHUD(); },
       addGold:()=>{ addGold(1000); },
+      addGoldBig:()=>{ addGold(10000); },
       addExp:()=>{ addExp(100); },
+      addExpBig:()=>{ addExp(1000); },
       levelUp:()=>{ levelUp(); },
       ownAll:()=>{
         WEAPONS.forEach((w,i)=>player.ownedW[i]=true); ARMORS.forEach((a,i)=>player.ownedA[i]=true);
