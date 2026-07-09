@@ -157,6 +157,16 @@
   /* アクションボタンの戦闘モード配色 */
   #act.combat{ background:radial-gradient(circle at 42% 35%, #ffb27a, #e0663a 68%, #b5432a); border-color:#ffd7bd; color:#2a1208; }
 
+  /* ---- 攻撃ボタン上：どの職業の技を長押しメニューに出すか選ぶバッジ ---- */
+  #skillJobBtn{ position:absolute; right:calc(env(safe-area-inset-right,0) + 54px); bottom:calc(env(safe-area-inset-bottom,0) + 152px);
+    width:40px; height:40px; border-radius:50%; pointer-events:auto; touch-action:none;
+    display:none; align-items:center; justify-content:center; font-size:18px;
+    background:linear-gradient(180deg, rgba(24,17,38,.92), rgba(16,11,28,.92));
+    border:1.5px solid var(--gold-dim); box-shadow:0 4px 12px rgba(0,0,0,.45);
+    transition:transform .08s; }
+  #skillJobBtn:active{ transform:scale(.9); }
+  #skillJobBtn .jlabel{ position:absolute; bottom:-15px; left:50%; transform:translateX(-50%);
+    font-size:9px; color:#cbb8f0; white-space:nowrap; text-shadow:0 1px 3px #000; }
   /* ---- 攻撃ボタン長押しで出るスキル選択（放射メニュー） ---- */
   #radialMenu{ position:fixed; z-index:21; pointer-events:none; display:none; }
   #radialMenu.show{ display:block; }
@@ -389,6 +399,7 @@
     <div id="dodge">回避</div>
     <div id="skillBtn">わざ</div>
     <div id="act">はなす</div>
+    <div id="skillJobBtn"></div>
   </div>
   <div id="radialMenu"></div>
   <div id="prompt"></div>
@@ -1649,7 +1660,7 @@
       weapon:0, armor:0, ownedW:{0:true}, ownedA:{0:true},
       accessory:0, ownedAcc:{0:true}, potions:0,
       job:0, villageEndings:{}, corruptionPower:false,
-      sp:0, skillsUnlocked:{}, equippedSkill:null, skillCd:0, atkBuffT:0,
+      sp:0, skillsUnlocked:{}, equippedSkill:null, skillJobFilter:null, skillCd:0, atkBuffT:0,
       iframes:0, dodgeCd:0, attackCd:0, attackAnimT:0, dash:null, knock:null, dead:false
     });
     // --- 転職システム（固定の職業から選ぶ。ステータス倍率と髪・マントの色が変わる） ---
@@ -1662,12 +1673,15 @@
       { id:"priest",  name:"僧侶",     ic:"⛪", desc:"回復魔法を極めた、仲間想いの支援役。",       atkMul:0.85, defMul:1.05, hpMul:1.2,  cdMul:1.1,  rangeBonus:0.2, healMul:1.7, hair:"#e8e4f0", cape:"#8a6fb0" },
       { id:"battlemaster", name:"バトルマスター", ic:"🪓", desc:"あらゆる得物を極めた、最強格の前衛。", atkMul:1.4,  defMul:1.3,  hpMul:1.25, cdMul:0.82, rangeBonus:0.15, hair:"#4a2a1a", cape:"#c9432a" }
     ];
-    // --- スキル（レベルアップで得るSPを消費して習得。1つを装備し「わざ」ボタンで発動する） ---
+    // --- スキル（レベルアップで得るSPを消費して習得。職業ごとに得意なわざ・呪文が決まっている） ---
     const SKILLS=[
-      { id:"power", name:"強打",       cost:1, cd:3.0,  ic:"💥", desc:"目の前へ強力な一撃を放つ（威力2.2倍）" },
-      { id:"heal",  name:"回復の光",   cost:1, cd:8.0,  ic:"✨", desc:"HPを最大値の25%回復する" },
-      { id:"whirl", name:"旋風斬り",   cost:2, cd:5.0,  ic:"🌀", desc:"周囲の敵をまとめて攻撃する" },
-      { id:"focus", name:"強化の構え", cost:2, cd:12.0, ic:"🔥", desc:"6秒間、攻撃力が50%上がる" }
+      { id:"slash",  name:"気合い一閃", job:"none",         cost:1, cd:2.5,  ic:"⚡", desc:"目の前へ一撃を放つ（威力1.6倍）" },
+      { id:"power",  name:"強打",       job:"warrior",      cost:1, cd:3.0,  ic:"💥", desc:"目の前へ強力な一撃を放つ（威力2.2倍）" },
+      { id:"fireball",name:"火球",      job:"mage",         cost:1, cd:4.5,  ic:"🔥", desc:"向いた方向へ火球を放つ（間合いが長い・威力2.0倍）" },
+      { id:"gale",   name:"疾風斬り",   job:"rogue",        cost:1, cd:2.0,  ic:"💨", desc:"前へ踏み込みながら斬りつける（威力1.8倍）" },
+      { id:"focus",  name:"強化の構え", job:"paladin",      cost:2, cd:12.0, ic:"🛡️", desc:"6秒間、攻撃力が50%上がる" },
+      { id:"heal",   name:"回復の光",   job:"priest",       cost:1, cd:8.0,  ic:"✨", desc:"HPを最大値の25%回復する" },
+      { id:"whirl",  name:"旋風斬り",   job:"battlemaster", cost:2, cd:5.0,  ic:"🌀", desc:"周囲の敵をまとめて攻撃する" }
     ];
     function useSkill(skillId){
       const id=skillId||player.equippedSkill;
@@ -1676,7 +1690,8 @@
       const asp=ARMORS[player.armor].special;
       player.skillCd=skill.cd*(1-(asp&&asp.type==="skillcd"?asp.value:0));
       const atkNow=player.atk*(player.atkBuffT>0?1.5:1);
-      if(skill.id==="power"){
+      if(skill.id==="power" || skill.id==="slash"){
+        const mult=skill.id==="power"?2.2:1.6;
         const [fx,fz]=faceVec(); const fa=Math.atan2(fx,fz), w=WEAPONS[player.weapon];
         spawnSlash(player.x+fx*1.4, player.z+fz*1.4);
         for(const m of monsters.slice()){
@@ -1684,11 +1699,43 @@
           if(d>w.range+1.2+m.T.r) continue;
           let diff=Math.abs(Math.atan2(dx,dz)-fa); if(diff>Math.PI) diff=2*Math.PI-diff;
           if(diff<=w.arc+0.3){
-            const dmg=Math.max(1,Math.round((atkNow*2.2-m.T.def)*(0.9+Math.random()*0.2)));
+            const dmg=Math.max(1,Math.round((atkNow*mult-m.T.def)*(0.9+Math.random()*0.2)));
             damageMonster(m,dmg,player.x,player.z);
           }
         }
-        floatText(player.x,player.z,"強打！","#ffb347",true);
+        floatText(player.x,player.z,skill.name+"！","#ffb347",true);
+      } else if(skill.id==="fireball"){
+        const [fx,fz]=faceVec(); const fa=Math.atan2(fx,fz);
+        const range=4.2, arc=0.5;
+        let hitX=null, hitZ=null, hitDist=Infinity, anyHit=false;
+        for(const m of monsters.slice()){
+          const dx=m.x-player.x, dz=m.z-player.z, d=Math.hypot(dx,dz);
+          if(d>range+m.T.r) continue;
+          let diff=Math.abs(Math.atan2(dx,dz)-fa); if(diff>Math.PI) diff=2*Math.PI-diff;
+          if(diff<=arc){
+            const dmg=Math.max(1,Math.round((atkNow*2.0-m.T.def)*(0.9+Math.random()*0.2)));
+            damageMonster(m,dmg,player.x,player.z);
+            anyHit=true; if(d<hitDist){ hitDist=d; hitX=m.x; hitZ=m.z; }
+          }
+        }
+        const tx=anyHit?hitX:player.x+fx*range, tz=anyHit?hitZ:player.z+fz*range;
+        spawnShot(player.x+fx*0.6, player.z+fz*0.6, tx, tz);
+        if(anyHit) spawnSlash(hitX,hitZ);
+        floatText(player.x,player.z,"火球！","#ff8a5a",true);
+      } else if(skill.id==="gale"){
+        const [fx,fz]=faceVec(); const fa=Math.atan2(fx,fz), w=WEAPONS[player.weapon];
+        player.dash={t:0.15, vx:fx*11, vz:fz*11};
+        spawnSlash(player.x+fx*1.4, player.z+fz*1.4);
+        for(const m of monsters.slice()){
+          const dx=m.x-player.x, dz=m.z-player.z, d=Math.hypot(dx,dz);
+          if(d>w.range+1.6+m.T.r) continue;
+          let diff=Math.abs(Math.atan2(dx,dz)-fa); if(diff>Math.PI) diff=2*Math.PI-diff;
+          if(diff<=w.arc+0.3){
+            const dmg=Math.max(1,Math.round((atkNow*1.8-m.T.def)*(0.9+Math.random()*0.2)));
+            damageMonster(m,dmg,player.x,player.z);
+          }
+        }
+        floatText(player.x,player.z,"疾風斬り！","#ffb347",true);
       } else if(skill.id==="heal"){
         const heal=Math.round(player.maxHp*0.25*(JOBS[player.job||0].healMul||1));
         player.hp=Math.min(player.maxHp,player.hp+heal); updateHUD();
@@ -1708,6 +1755,28 @@
       }
       if(menuOpen) updateMenu();
       saveGame(false);
+    }
+    // --- 職業別スキル選択（攻撃ボタン長押しのホイールで、どの職業の技を出すか） ---
+    function jobsWithUnlockedSkill(){
+      const jobIds=new Set(SKILLS.filter(s=>player.skillsUnlocked[s.id]).map(s=>s.job));
+      return JOBS.filter(j=>jobIds.has(j.id));
+    }
+    function ensureSkillJobFilter(){
+      const avail=jobsWithUnlockedSkill(); if(!avail.length){ player.skillJobFilter=null; return; }
+      if(avail.some(j=>j.id===player.skillJobFilter)) return;
+      const cur=avail.find(j=>j.id===JOBS[player.job||0].id);
+      player.skillJobFilter=(cur||avail[0]).id;
+    }
+    function cycleSkillJobFilter(){
+      const avail=jobsWithUnlockedSkill(); if(!avail.length) return;
+      ensureSkillJobFilter();
+      const i=avail.findIndex(j=>j.id===player.skillJobFilter);
+      player.skillJobFilter=avail[(i+1)%avail.length].id;
+      saveGame(false);
+    }
+    function skillsForJobFilter(){
+      ensureSkillJobFilter();
+      return SKILLS.filter(s=>player.skillsUnlocked[s.id] && s.job===player.skillJobFilter);
     }
     function deriveStats(){ const w=WEAPONS[player.weapon], a=ARMORS[player.armor], job=JOBS[player.job||0];
       const corr=player.corruptionPower?5:0;
@@ -1775,7 +1844,7 @@
           s_hp=document.getElementById("s-hp"), s_hptext=document.getElementById("s-hptext"),
           s_xp=document.getElementById("s-xp"), s_gear=document.getElementById("s-gear"),
           statsEl=document.getElementById("stats"), banner=document.getElementById("banner"),
-          dodgeBtn=document.getElementById("dodge"), skillBtn=document.getElementById("skillBtn");
+          dodgeBtn=document.getElementById("dodge"), skillBtn=document.getElementById("skillBtn"), skillJobBtn=document.getElementById("skillJobBtn");
     function updateHUD(){
       s_lv.textContent=player.level; s_gold.textContent=player.gold;
       s_hp.style.width=Math.max(0,player.hp)/player.maxHp*100+"%";
@@ -2418,7 +2487,10 @@
     }
     function selectJob(idx){
       if(idx===player.job) return;
-      player.job=idx; deriveStats(); updateHUD(); rebuildHeroTexture(); buildJobList(); saveGame(false);
+      player.job=idx; deriveStats(); updateHUD(); rebuildHeroTexture(); buildJobList();
+      // その職業のわざを覚えていれば、長押しメニューの対象も自動でその職業に切り替える
+      if(SKILLS.some(s=>s.job===JOBS[idx].id && player.skillsUnlocked[s.id])) player.skillJobFilter=JOBS[idx].id;
+      saveGame(false);
       floatText(player.x,player.z,JOBS[idx].name+"になった","#e6c268",true);
     }
 
@@ -2520,7 +2592,7 @@
           weapon:player.weapon, armor:player.armor, ownedW:player.ownedW, ownedA:player.ownedA,
           accessory:player.accessory, ownedAcc:player.ownedAcc, potions:player.potions,
           job:player.job, villageEndings:player.villageEndings, corruptionPower:player.corruptionPower,
-          sp:player.sp, skillsUnlocked:player.skillsUnlocked, equippedSkill:player.equippedSkill,
+          sp:player.sp, skillsUnlocked:player.skillsUnlocked, equippedSkill:player.equippedSkill, skillJobFilter:player.skillJobFilter,
           quests:player.quests, greeted:Array.from(greetedSet), dungeonBossDefeated,
           totalGameHours, weather, currentVillageIdx,
           x:pos.x, z:pos.z, savedAt:Date.now() };
@@ -2540,7 +2612,7 @@
           weapon:d.weapon||0, armor:d.armor||0, ownedW:d.ownedW||{0:true}, ownedA:d.ownedA||{0:true},
           accessory:d.accessory||0, ownedAcc:d.ownedAcc||{0:true}, potions:d.potions||0,
           job:d.job||0, villageEndings:d.villageEndings||{}, corruptionPower:!!d.corruptionPower,
-          sp:d.sp||0, skillsUnlocked:d.skillsUnlocked||{}, equippedSkill:d.equippedSkill||null,
+          sp:d.sp||0, skillsUnlocked:d.skillsUnlocked||{}, equippedSkill:d.equippedSkill||null, skillJobFilter:d.skillJobFilter||null,
           // 新しく追加されたクエストIDも既定値で持てるよう、既定値に保存分を上書きする形でマージする
           quests:d.quests?Object.assign({},player.quests,d.quests):player.quests,
           x:(typeof d.x==="number")?d.x:0, z:(typeof d.z==="number")?d.z:7 });
@@ -2620,7 +2692,8 @@
         const row=document.createElement("div");
         row.className="item"+(equipped?" equipped":"")+((!unlocked&&!canUnlock)?" locked":"");
         const label = equipped ? "装備中" : unlocked ? "装備する" : "SP"+s.cost+"で習得";
-        row.innerHTML='<div class="ic">'+s.ic+'</div><div class="nm">'+s.name+'<small>'+s.desc+'</small></div><div class="eq">'+label+'</div>';
+        const jobName=(JOBS.find(j=>j.id===s.job)||{}).name||"";
+        row.innerHTML='<div class="ic">'+s.ic+'</div><div class="nm">'+s.name+'<small>【'+jobName+'】'+s.desc+'</small></div><div class="eq">'+label+'</div>';
         row.addEventListener("click",()=>skillListAction(s.id));
         m_skilllist.appendChild(row);
       });
@@ -2951,9 +3024,8 @@
     const ACT_HOLD_MS=300, RADIAL_R=98, RADIAL_DEADZONE=34, RADIAL_HIT=42;
     let actPointerId=null, actHoldTimer=null, actHoldTriggered=false;
     let radialActive=false, radialSkills=[], radialSelectedIdx=-1, radialCenter={x:0,y:0}, radialPetalPos=[], radialPetalEls=[];
-    function unlockedSkillList(){ return SKILLS.filter(s=>player.skillsUnlocked[s.id]); }
     function openRadialMenu(cx,cy){
-      const list=unlockedSkillList(); if(!list.length) return false;
+      const list=skillsForJobFilter(); if(!list.length) return false;
       radialSkills=list; radialSelectedIdx=-1; radialCenter={x:cx,y:cy}; radialPetalPos=[]; radialPetalEls=[];
       radialMenuEl.innerHTML="";
       const centerEl=document.createElement("div"); centerEl.id="radialCenter";
@@ -2989,7 +3061,7 @@
     }
     actBtn.addEventListener("pointerdown",e=>{
       e.preventDefault();
-      if(!actBtn.classList.contains("combat") || !unlockedSkillList().length){ tryAct(); return; }
+      if(!actBtn.classList.contains("combat") || !skillsForJobFilter().length){ tryAct(); return; }
       actPointerId=e.pointerId; actHoldTriggered=false;
       const rect=actBtn.getBoundingClientRect(), cx=rect.left+rect.width/2, cy=rect.top+rect.height/2;
       clearTimeout(actHoldTimer);
@@ -3012,6 +3084,7 @@
     addEventListener("pointercancel",endActHold);
     dodgeBtn.addEventListener("pointerdown",e=>{ e.preventDefault(); doDodge(); });
     skillBtn.addEventListener("pointerdown",e=>{ e.preventDefault(); useSkill(); });
+    skillJobBtn.addEventListener("pointerdown",e=>{ e.preventDefault(); cycleSkillJobFilter(); });
 
     // ============================================================
     //  当たり判定 & 更新
@@ -3171,6 +3244,12 @@
       dodgeBtn.classList.toggle("cool", player.dodgeCd>0);
       skillBtn.style.display = ((inField||dungeonFloor) && player.equippedSkill && !convo && !shopOpen && !menuOpen && !choiceOpen && !jobSelectOpen && !debugOpen && !player.dead) ? "flex" : "none";
       skillBtn.classList.toggle("cool", player.skillCd>0);
+      const jobFilterAvail=jobsWithUnlockedSkill();
+      skillJobBtn.style.display = ((inField||dungeonFloor) && jobFilterAvail.length && !convo && !shopOpen && !menuOpen && !choiceOpen && !jobSelectOpen && !debugOpen && !player.dead) ? "flex" : "none";
+      if(jobFilterAvail.length){ ensureSkillJobFilter();
+        const fj=JOBS.find(j=>j.id===player.skillJobFilter)||jobFilterAvail[0];
+        skillJobBtn.innerHTML=fj.ic+'<div class="jlabel">'+fj.name+'</div>';
+      }
       drawMinimap();
       updateQuestBanner();
 
