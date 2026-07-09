@@ -128,12 +128,24 @@
     background:rgba(0,0,0,.45); border:1px solid rgba(230,194,104,.25); }
   #stats .bar i{ position:absolute; left:0; top:0; bottom:0; display:block; border-radius:6px; transition:width .18s; }
   #stats .hp i{ background:linear-gradient(180deg,#ff8f7a,#d84a3a); }
+  #stats .stamina{ height:7px; } #stats .stamina i{ background:linear-gradient(180deg,#d4e86a,#8fb83a); transition:width .1s; }
   #stats .xp{ height:6px; } #stats .xp i{ background:linear-gradient(180deg,#8fe6d6,#3fb8a6); }
   #stats .bar span{ position:absolute; inset:0; text-align:center; font-size:9px; line-height:11px; color:#fff; text-shadow:0 1px 1px #000; }
   #stats .gear{ margin-top:6px; font-size:11px; color:#e8dcc0; line-height:1.5; }
   #stats .clock{ margin-top:5px; padding-top:5px; border-top:1px solid rgba(230,194,104,.18);
     font-size:11px; color:#cbb8f0; letter-spacing:.03em; }
 
+  /* ---- ダッシュボタン ---- */
+  #dash{ position:absolute; left:calc(env(safe-area-inset-left,0) + 158px); bottom:calc(env(safe-area-inset-bottom,0) + 66px);
+    width:56px; height:56px; border-radius:50%; pointer-events:auto; touch-action:none;
+    display:none; align-items:center; justify-content:center; font-family:"Hiragino Mincho ProN",serif;
+    color:#1a2a08; font-size:12px;
+    background:radial-gradient(circle at 42% 35%, #eaffb0, #a8d34a 72%, #7aa82a);
+    border:2px solid #f2ffd0; box-shadow:0 5px 14px rgba(0,0,0,.5), inset 0 2px 3px rgba(255,255,255,.5);
+    opacity:.85; transition:transform .08s, opacity .15s; }
+  #dash.active{ opacity:1; box-shadow:0 0 18px 4px rgba(200,255,80,.8), inset 0 2px 3px rgba(255,255,255,.6); }
+  #dash.tired{ opacity:.35; }
+  #dash:active{ transform:scale(.92); }
   /* ---- 回避ボタン ---- */
   #dodge{ position:absolute; right:calc(env(safe-area-inset-right,0) + 130px); bottom:calc(env(safe-area-inset-bottom,0) + 54px);
     width:66px; height:66px; border-radius:50%; pointer-events:auto; touch-action:none;
@@ -306,6 +318,8 @@
   #menu .bar i{ position:absolute; left:0; top:0; bottom:0; display:block; border-radius:7px; }
   #menu .bar.hp i{ background:linear-gradient(180deg,#ff8f7a,#d84a3a); }
   #menu .bar.xp i{ background:linear-gradient(180deg,#8fe6d6,#3fb8a6); }
+  #menu .bar.stamina{ height:10px; } #menu .bar.stamina i{ background:linear-gradient(180deg,#d4e86a,#8fb83a); }
+  #menu .bar.stamina span{ line-height:10px; font-size:9px; }
   #menu .bar span{ position:absolute; inset:0; text-align:center; font-size:10px; line-height:13px; color:#fff; text-shadow:0 1px 1px #000; }
   #menu .equip-now{ display:flex; gap:10px; padding:10px 12px; margin-bottom:6px; background:rgba(255,255,255,.03);
     border:1px solid rgba(230,194,104,.18); border-radius:10px; }
@@ -387,6 +401,7 @@
   <div id="stats">
     <div class="row"><span class="lv">Lv <b id="s-lv">1</b></span><span class="gold">🪙 <b id="s-gold">0</b></span></div>
     <div class="bar hp"><i id="s-hp" style="width:100%"></i><span id="s-hptext">40/40</span></div>
+    <div class="bar stamina"><i id="s-stamina" style="width:100%"></i></div>
     <div class="bar xp"><i id="s-xp" style="width:0%"></i></div>
     <div class="gear" id="s-gear">⚔ こんぼう ／ 🛡 旅の服</div>
     <div class="clock" id="s-clock">☀️ 08:00・1日目</div>
@@ -396,6 +411,7 @@
 
   <div id="hud">
     <div id="stick"><div id="knob"></div></div>
+    <div id="dash">ダッシュ</div>
     <div id="dodge">回避</div>
     <div id="skillBtn">わざ</div>
     <div id="act">はなす</div>
@@ -453,7 +469,10 @@
       <div class="stat-row"><span>Lv <b id="m-lv">1</b></span><span>🪙 <b id="m-gold">0</b></span></div>
       <div class="bar hp"><i id="m-hp" style="width:100%"></i><span id="m-hptext">40/40</span></div>
       <div class="bar xp"><i id="m-xp" style="width:0%"></i><span id="m-xptext">0/12</span></div>
+      <div class="bar stamina"><i id="m-stamina" style="width:100%"></i><span id="m-staminatext">40/40</span></div>
       <div class="stat-row"><span>攻撃力 <b id="m-atk">0</b></span><span>防御力 <b id="m-def">0</b></span></div>
+      <div class="stat-row"><span>攻撃魔力 <b id="m-matk">0</b></span><span>回復魔力 <b id="m-mheal">0</b></span></div>
+      <div class="stat-row"><span>スタミナLv <b id="m-staminalv">1</b></span><span></span></div>
 
       <div class="sec-title">装備中</div>
       <div class="equip-now"><div class="ic" id="m-eq-w-ic">🪵</div><div class="tx"><span id="m-eq-w-nm">こんぼう</span><small id="m-eq-w-sub"></small></div></div>
@@ -538,6 +557,8 @@
         <button class="dbtn" data-act="openJobs">転職メニューを開く</button>
         <button class="dbtn" data-act="addSP">SP +3</button>
         <button class="dbtn wide" data-act="unlockAllSkills">スキルを全習得</button>
+        <button class="dbtn" data-act="staminaFull">スタミナ全回復</button>
+        <button class="dbtn wide" data-act="staminaLvUp">スタミナレベル+3</button>
       </div>
 
       <div class="sec-title">時間・天候</div>
@@ -1661,23 +1682,25 @@
     // --- プレイヤー戦闘ステータス ---
     Object.assign(player,{
       level:1, exp:0, expNext:12, gold:60,
-      baseMaxHp:40, baseAtk:6, baseDef:2,
-      hp:40, maxHp:40, atk:0, def:0,
+      baseMaxHp:40, baseAtk:6, baseDef:2, baseMagicAtk:4, baseMagicHeal:4,
+      hp:40, maxHp:40, atk:0, def:0, magicAtk:0, magicHeal:0,
       weapon:0, armor:0, ownedW:{0:true}, ownedA:{0:true},
       accessory:0, ownedAcc:{0:true}, potions:0,
       job:0, villageEndings:{}, corruptionPower:false,
       sp:0, skillsUnlocked:{}, equippedSkill:null, skillJobFilter:null, skillCd:0, atkBuffT:0,
-      iframes:0, dodgeCd:0, attackCd:0, attackAnimT:0, dash:null, knock:null, dead:false
+      iframes:0, dodgeCd:0, attackCd:0, attackAnimT:0, dash:null, knock:null, dead:false,
+      baseStamina:40, stamina:40, maxStamina:40, staminaLv:1, staminaExp:0, staminaExpNext:15,
+      dashHeld:false, sprinting:false
     });
     // --- 転職システム（固定の職業から選ぶ。ステータス倍率と髪・マントの色が変わる） ---
     const JOBS=[
-      { id:"none",    name:"冒険者",   ic:"🌱", desc:"まだ何色にも染まっていない、旅の始まり。", atkMul:1,    defMul:1,    hpMul:1,    cdMul:1,    rangeBonus:0,   hair:null, cape:null },
-      { id:"warrior", name:"戦士",     ic:"⚔️", desc:"高い攻撃力と守りを兼ね備えた前衛。",         atkMul:1.22, defMul:1.15, hpMul:1.12, cdMul:1.0,  rangeBonus:0,   hair:"#7a3a2a", cape:"#8a2a2a" },
-      { id:"mage",    name:"魔法使い", ic:"🔮", desc:"一撃は軽いが、間合いに優れる。",             atkMul:1.4,  defMul:0.8,  hpMul:0.85, cdMul:1.05, rangeBonus:0.7, hair:"#3a4fae", cape:"#241f6b" },
-      { id:"rogue",   name:"盗賊",     ic:"🗡️", desc:"手数で押す、素早い身のこなし。",             atkMul:1.08, defMul:0.9,  hpMul:0.95, cdMul:0.72, rangeBonus:0,   hair:"#2f7d4a", cape:"#234f33" },
-      { id:"paladin", name:"聖騎士",   ic:"🛡️", desc:"重い守りで仲間を支える壁役。",               atkMul:0.95, defMul:1.4,  hpMul:1.3,  cdMul:1.15, rangeBonus:0.2, hair:"#cdb35a", cape:"#eae2c8" },
-      { id:"priest",  name:"僧侶",     ic:"⛪", desc:"回復魔法を極めた、仲間想いの支援役。",       atkMul:0.85, defMul:1.05, hpMul:1.2,  cdMul:1.1,  rangeBonus:0.2, healMul:1.7, hair:"#e8e4f0", cape:"#8a6fb0" },
-      { id:"battlemaster", name:"バトルマスター", ic:"🪓", desc:"あらゆる得物を極めた、最強格の前衛。", atkMul:1.4,  defMul:1.3,  hpMul:1.25, cdMul:0.82, rangeBonus:0.15, hair:"#4a2a1a", cape:"#c9432a" }
+      { id:"none",    name:"冒険者",   ic:"🌱", desc:"まだ何色にも染まっていない、旅の始まり。", atkMul:1,    defMul:1,    hpMul:1,    cdMul:1,    rangeBonus:0,   magicAtkMul:0.6, magicHealMul:0.6, hair:null, cape:null },
+      { id:"warrior", name:"戦士",     ic:"⚔️", desc:"高い攻撃力と守りを兼ね備えた前衛。",         atkMul:1.22, defMul:1.15, hpMul:1.12, cdMul:1.0,  rangeBonus:0,   magicAtkMul:0.4, magicHealMul:0.4, hair:"#7a3a2a", cape:"#8a2a2a" },
+      { id:"mage",    name:"魔法使い", ic:"🔮", desc:"一撃は軽いが、間合いに優れる。",             atkMul:1.4,  defMul:0.8,  hpMul:0.85, cdMul:1.05, rangeBonus:0.7, magicAtkMul:1.9, magicHealMul:0.7, hair:"#3a4fae", cape:"#241f6b" },
+      { id:"rogue",   name:"盗賊",     ic:"🗡️", desc:"手数で押す、素早い身のこなし。",             atkMul:1.08, defMul:0.9,  hpMul:0.95, cdMul:0.72, rangeBonus:0,   magicAtkMul:0.5, magicHealMul:0.5, hair:"#2f7d4a", cape:"#234f33" },
+      { id:"paladin", name:"聖騎士",   ic:"🛡️", desc:"重い守りで仲間を支える壁役。",               atkMul:0.95, defMul:1.4,  hpMul:1.3,  cdMul:1.15, rangeBonus:0.2, magicAtkMul:0.6, magicHealMul:0.9, hair:"#cdb35a", cape:"#eae2c8" },
+      { id:"priest",  name:"僧侶",     ic:"⛪", desc:"回復魔法を極めた、仲間想いの支援役。",       atkMul:0.85, defMul:1.05, hpMul:1.2,  cdMul:1.1,  rangeBonus:0.2, healMul:1.7, magicAtkMul:0.7, magicHealMul:2.0, hair:"#e8e4f0", cape:"#8a6fb0" },
+      { id:"battlemaster", name:"バトルマスター", ic:"🪓", desc:"あらゆる得物を極めた、最強格の前衛。", atkMul:1.4,  defMul:1.3,  hpMul:1.25, cdMul:0.82, rangeBonus:0.15, magicAtkMul:0.5, magicHealMul:0.5, hair:"#4a2a1a", cape:"#c9432a" }
     ];
     // --- スキル（レベルアップで得るSPを消費して習得。職業ごとに得意なわざ・呪文が決まっている） ---
     const SKILLS=[
@@ -1713,13 +1736,14 @@
       } else if(skill.id==="fireball"){
         const [fx,fz]=faceVec(); const fa=Math.atan2(fx,fz);
         const range=4.2, arc=0.5;
+        const magicAtkNow=player.magicAtk*(player.atkBuffT>0?1.5:1);
         let hitX=null, hitZ=null, hitDist=Infinity, anyHit=false;
         for(const m of monsters.slice()){
           const dx=m.x-player.x, dz=m.z-player.z, d=Math.hypot(dx,dz);
           if(d>range+m.T.r) continue;
           let diff=Math.abs(Math.atan2(dx,dz)-fa); if(diff>Math.PI) diff=2*Math.PI-diff;
           if(diff<=arc){
-            const dmg=Math.max(1,Math.round((atkNow*2.0-m.T.def)*(0.9+Math.random()*0.2)));
+            const dmg=Math.max(1,Math.round((atkNow+magicAtkNow*2.2-m.T.def)*(0.9+Math.random()*0.2)));
             damageMonster(m,dmg,player.x,player.z);
             anyHit=true; if(d<hitDist){ hitDist=d; hitX=m.x; hitZ=m.z; }
           }
@@ -1744,7 +1768,7 @@
         }
         floatText(player.x,player.z,"疾風斬り！","#ffb347",true);
       } else if(skill.id==="heal"){
-        const heal=Math.round(player.maxHp*0.25*(JOBS[player.job||0].healMul||1));
+        const heal=Math.round(player.maxHp*0.25*(JOBS[player.job||0].healMul||1)+player.magicHeal*2.2);
         player.hp=Math.min(player.maxHp,player.hp+heal); updateHUD();
         floatText(player.x,player.z,"HPが"+heal+"回復した","#8fe6d6",true);
       } else if(skill.id==="whirl"){
@@ -1760,6 +1784,7 @@
         player.atkBuffT=6.0;
         floatText(player.x,player.z,"攻撃力アップ！","#ff8a5a",true);
       }
+      addStaminaExp(1.2);
       if(menuOpen) updateMenu();
       saveGame(false);
     }
@@ -1790,7 +1815,11 @@
       player.maxHp=Math.round((player.baseMaxHp+a.hp)*job.hpMul);
       player.atk=Math.round((player.baseAtk+w.atk)*job.atkMul)+corr;
       player.def=Math.round((player.baseDef+a.def)*job.defMul);
-      if(player.hp>player.maxHp) player.hp=player.maxHp; }
+      player.magicAtk=Math.round(player.baseMagicAtk*(job.magicAtkMul||1));
+      player.magicHeal=Math.round(player.baseMagicHeal*(job.magicHealMul||1));
+      player.maxStamina=player.baseStamina;
+      if(player.hp>player.maxHp) player.hp=player.maxHp;
+      if(player.stamina>player.maxStamina) player.stamina=player.maxStamina; }
 
     // --- クエストログ（受注履歴・進行状況） ---
     const QUESTS=[
@@ -1851,12 +1880,14 @@
           s_hp=document.getElementById("s-hp"), s_hptext=document.getElementById("s-hptext"),
           s_xp=document.getElementById("s-xp"), s_gear=document.getElementById("s-gear"),
           statsEl=document.getElementById("stats"), banner=document.getElementById("banner"),
-          dodgeBtn=document.getElementById("dodge"), skillBtn=document.getElementById("skillBtn"), skillJobBtn=document.getElementById("skillJobBtn");
+          dodgeBtn=document.getElementById("dodge"), skillBtn=document.getElementById("skillBtn"), skillJobBtn=document.getElementById("skillJobBtn"),
+          staminaBarEl=document.getElementById("s-stamina"), dashBtn=document.getElementById("dash");
     function updateHUD(){
       s_lv.textContent=player.level; s_gold.textContent=player.gold;
       s_hp.style.width=Math.max(0,player.hp)/player.maxHp*100+"%";
       s_hptext.textContent=Math.max(0,Math.ceil(player.hp))+"/"+player.maxHp;
       s_xp.style.width=(player.exp/player.expNext*100)+"%";
+      staminaBarEl.style.width=Math.max(0,player.stamina)/player.maxStamina*100+"%";
       s_gear.textContent="⚔ "+WEAPONS[player.weapon].name+" ／ 🛡 "+ARMORS[player.armor].name
         +(player.accessory ? " ／ "+ACCESSORIES[player.accessory].ic+" "+ACCESSORIES[player.accessory].name : "")
         +(player.potions ? " ／ 🧪×"+player.potions : "");
@@ -1873,11 +1904,25 @@
     function addGold(n){ player.gold+=n; updateHUD(); }
     function addExp(n){ player.exp+=n; while(player.exp>=player.expNext) levelUp(); updateHUD(); }
     function levelUp(){ player.exp-=player.expNext; player.level++;
-      player.baseMaxHp+=8; player.baseAtk+=2; player.baseDef+=1; player.expNext=Math.round(player.expNext*1.4);
+      player.baseMaxHp+=8; player.baseAtk+=2; player.baseDef+=1;
+      player.baseMagicAtk+=2; player.baseMagicHeal+=2;
+      player.expNext=Math.round(player.expNext*1.4);
       player.sp=(player.sp||0)+1;
       deriveStats(); player.hp=player.maxHp;
       floatText(player.x,player.z,"LEVEL UP! Lv"+player.level,"#8fe6d6",true); showBanner("レベルアップ！","Lv "+player.level+"／SP+1");
       saveGame(false); }
+    // --- スタミナ：走る・回避で使うほど「スタミナレベル」が上がり、最大値が伸びていく ---
+    function addStaminaExp(amount){
+      player.staminaExp=(player.staminaExp||0)+amount;
+      let leveled=false;
+      while(player.staminaExp>=player.staminaExpNext){
+        player.staminaExp-=player.staminaExpNext; player.staminaLv=(player.staminaLv||1)+1;
+        player.staminaExpNext=Math.round(player.staminaExpNext*1.4);
+        player.baseStamina+=8; player.stamina=player.maxStamina=player.baseStamina;
+        leveled=true;
+      }
+      if(leveled){ floatText(player.x,player.z,"スタミナ上昇！Lv"+player.staminaLv,"#bfe86a",true); saveGame(false); }
+    }
 
     // --- 演出：浮遊テキスト / ゾーンバナー / 被弾フラッシュ ---
     function floatText(x,z,txt,color,big){ const s=worldToScreen(x,2.4,z); if(!s.vis) return;
@@ -2300,6 +2345,7 @@
           if(Math.random()<critChance) dmg=Math.round(dmg*1.6); damageMonster(m,dmg,player.x,player.z);
           totalDmg+=dmg; anyHit=true; if(d<hitDist){ hitDist=d; hitX=m.x; hitZ=m.z; } }
       }
+      if(anyHit) addStaminaExp(1.5);
       if(w.ranged){
         const tx=anyHit?hitX:player.x+fx*range, tz=anyHit?hitZ:player.z+fz*range;
         spawnShot(player.x+fx*0.6, player.z+fz*0.6, tx, tz);
@@ -2318,6 +2364,7 @@
       let [fx,fz]=faceVec();
       const il=Math.hypot(input.x,input.y); if(il>0.2){ fx=input.x/il; fz=input.y/il; }
       player.dash={t:0.18, vx:fx*15, vz:fz*15};
+      addStaminaExp(2);
     }
     function playerHurt(dmg,sx,sz){
       if(player.dead || player.iframes>0) return;
@@ -2530,6 +2577,7 @@
         "現在地: "+v.name+" ／ 座標 ("+player.x.toFixed(1)+", "+player.z.toFixed(1)+")\n"+
         "Lv"+player.level+" HP "+Math.ceil(player.hp)+"/"+player.maxHp+" ／ 🪙"+player.gold+" ／ EXP "+Math.floor(player.exp)+"/"+player.expNext+" ／ 職業: "+JOBS[player.job||0].name+"\n"+
         "SP "+(player.sp||0)+" ／ 装備スキル: "+(player.equippedSkill?SKILLS.find(s=>s.id===player.equippedSkill).name:"なし")+"\n"+
+        "攻撃魔力 "+player.magicAtk+" ／ 回復魔力 "+player.magicHeal+" ／ スタミナ "+Math.ceil(player.stamina)+"/"+player.maxStamina+"（Lv"+(player.staminaLv||1)+"）\n"+
         "地下遺跡ボス撃破: "+(dungeonBossDefeated?"済":"未")+" ／ アルニカの選択: "+(player.villageEndings.arnica||"未選択")+" ／ イグナの選択: "+(player.villageEndings.igna||"未選択");
     }
     function forceQuestActive(id){ const st=player.quests[id]; if(st && st.status==="locked") st.status="active"; }
@@ -2575,6 +2623,8 @@
         updateHUD(); if(menuOpen) updateMenu(); },
       openJobs:()=>{ closeDebugMenu(); openJobSelect(); },
       addSP:()=>{ player.sp=(player.sp||0)+3; if(menuOpen) updateMenu(); },
+      staminaFull:()=>{ player.stamina=player.maxStamina; updateHUD(); if(menuOpen) updateMenu(); },
+      staminaLvUp:()=>{ addStaminaExp(player.staminaExpNext*3); if(menuOpen) updateMenu(); },
       unlockAllSkills:()=>{
         SKILLS.forEach(s=>{ player.skillsUnlocked[s.id]=true; });
         if(!player.equippedSkill) player.equippedSkill=SKILLS[0].id;
@@ -2612,6 +2662,8 @@
         const pos = indoorHouse ? savedOutdoor : (dungeonFloor ? dungeonReturnPos : { x:player.x, z:player.z });
         const data={ v:1, level:player.level, exp:player.exp, expNext:player.expNext, gold:player.gold,
           baseMaxHp:player.baseMaxHp, baseAtk:player.baseAtk, baseDef:player.baseDef, hp:player.hp,
+          baseMagicAtk:player.baseMagicAtk, baseMagicHeal:player.baseMagicHeal,
+          baseStamina:player.baseStamina, stamina:player.stamina, staminaLv:player.staminaLv, staminaExp:player.staminaExp, staminaExpNext:player.staminaExpNext,
           weapon:player.weapon, armor:player.armor, ownedW:player.ownedW, ownedA:player.ownedA,
           accessory:player.accessory, ownedAcc:player.ownedAcc, potions:player.potions,
           job:player.job, villageEndings:player.villageEndings, corruptionPower:player.corruptionPower,
@@ -2632,6 +2684,9 @@
         const d=JSON.parse(raw);
         Object.assign(player,{ level:d.level, exp:d.exp, expNext:d.expNext, gold:d.gold,
           baseMaxHp:d.baseMaxHp, baseAtk:d.baseAtk, baseDef:d.baseDef,
+          baseMagicAtk:(typeof d.baseMagicAtk==="number")?d.baseMagicAtk:4, baseMagicHeal:(typeof d.baseMagicHeal==="number")?d.baseMagicHeal:4,
+          baseStamina:(typeof d.baseStamina==="number")?d.baseStamina:40, stamina:(typeof d.stamina==="number")?d.stamina:40,
+          staminaLv:d.staminaLv||1, staminaExp:d.staminaExp||0, staminaExpNext:d.staminaExpNext||15,
           weapon:d.weapon||0, armor:d.armor||0, ownedW:d.ownedW||{0:true}, ownedA:d.ownedA||{0:true},
           accessory:d.accessory||0, ownedAcc:d.ownedAcc||{0:true}, potions:d.potions||0,
           job:d.job||0, villageEndings:d.villageEndings||{}, corruptionPower:!!d.corruptionPower,
@@ -2649,6 +2704,7 @@
         if(player.villageEndings.igna) setIgnaForgeVisual(player.villageEndings.igna);
         deriveStats();
         player.hp=(typeof d.hp==="number")?Math.min(d.hp,player.maxHp):player.maxHp;
+        player.stamina=(typeof d.stamina==="number")?Math.min(d.stamina,player.maxStamina):player.maxStamina;
         lastSaveAt=d.savedAt||0;
         rebuildHeroTexture(); updateHUD(); updateClockHUD();
         if(currentZone==="outdoor") applyTimeWeatherLighting();
@@ -2663,6 +2719,8 @@
           m_hp=document.getElementById("m-hp"), m_hptext=document.getElementById("m-hptext"),
           m_xp=document.getElementById("m-xp"), m_xptext=document.getElementById("m-xptext"),
           m_atk=document.getElementById("m-atk"), m_def=document.getElementById("m-def"),
+          m_matk=document.getElementById("m-matk"), m_mheal=document.getElementById("m-mheal"),
+          m_stamina=document.getElementById("m-stamina"), m_staminatext=document.getElementById("m-staminatext"), m_staminalv=document.getElementById("m-staminalv"),
           m_eqWIc=document.getElementById("m-eq-w-ic"), m_eqWNm=document.getElementById("m-eq-w-nm"), m_eqWSub=document.getElementById("m-eq-w-sub"),
           m_eqAIc=document.getElementById("m-eq-a-ic"), m_eqANm=document.getElementById("m-eq-a-nm"), m_eqASub=document.getElementById("m-eq-a-sub"),
           m_eqAccIc=document.getElementById("m-eq-acc-ic"), m_eqAccNm=document.getElementById("m-eq-acc-nm"), m_eqAccSub=document.getElementById("m-eq-acc-sub"),
@@ -2741,6 +2799,10 @@
       m_xp.style.width=(player.exp/player.expNext*100)+"%";
       m_xptext.textContent=player.exp+"/"+player.expNext;
       m_atk.textContent=player.atk; m_def.textContent=player.def;
+      m_matk.textContent=player.magicAtk; m_mheal.textContent=player.magicHeal;
+      m_stamina.style.width=Math.max(0,player.stamina)/player.maxStamina*100+"%";
+      m_staminatext.textContent=Math.max(0,Math.ceil(player.stamina))+"/"+player.maxStamina;
+      m_staminalv.textContent=player.staminaLv||1;
       const w=WEAPONS[player.weapon], a=ARMORS[player.armor], acc=ACCESSORIES[player.accessory];
       m_eqWIc.textContent=w.ic; m_eqWNm.textContent=w.name; m_eqWSub.textContent="攻撃+"+w.atk+"／"+w.desc;
       m_eqAIc.textContent=a.ic; m_eqANm.textContent=a.name; m_eqASub.textContent="防御+"+a.def+"・HP+"+a.hp+"／"+a.desc;
@@ -3108,6 +3170,11 @@
     dodgeBtn.addEventListener("pointerdown",e=>{ e.preventDefault(); doDodge(); });
     skillBtn.addEventListener("pointerdown",e=>{ e.preventDefault(); useSkill(); });
     skillJobBtn.addEventListener("pointerdown",e=>{ e.preventDefault(); cycleSkillJobFilter(); });
+    dashBtn.addEventListener("pointerdown",e=>{ e.preventDefault(); player.dashHeld=true; });
+    dashBtn.addEventListener("pointerup",e=>{ e.preventDefault(); player.dashHeld=false; });
+    dashBtn.addEventListener("pointercancel",e=>{ player.dashHeld=false; });
+    addEventListener("keydown",e=>{ if(e.key==="Shift") player.dashHeld=true; });
+    addEventListener("keyup",e=>{ if(e.key==="Shift") player.dashHeld=false; });
 
     // ============================================================
     //  当たり判定 & 更新
@@ -3142,8 +3209,13 @@
 
       const canMove = !convo && !shopOpen && !menuOpen && !choiceOpen && !jobSelectOpen && !debugOpen && !player.dead;
       const walking = canMove && moving;
+      // スタミナ：ダッシュ中は消費して速く走れる。それ以外は自然回復し、走るほどスタミナのレベルが上がる
+      player.sprinting = walking && player.dashHeld && player.stamina>0.5;
+      if(player.sprinting){ player.stamina=Math.max(0,player.stamina-18*dt); addStaminaExp(3*dt); }
+      else if(player.stamina<player.maxStamina){ player.stamina=Math.min(player.maxStamina, player.stamina+10*dt); }
+      staminaBarEl.style.width=Math.max(0,player.stamina)/player.maxStamina*100+"%";
       if(walking){
-        const sp=player.speed*dt;
+        const sp=player.speed*(player.sprinting?1.6:1)*dt;
         movePlayer(ix*sp, iy*sp);
         // 進行方向（優勢な軸で4方向を決定）
         if(Math.abs(iy)>=Math.abs(ix)) player.facing=iy>0?"down":"up";
@@ -3266,6 +3338,10 @@
       // 回避ボタン（フィールドでのみ）
       dodgeBtn.style.display = ((inField||dungeonFloor) && !convo && !shopOpen && !menuOpen && !choiceOpen && !jobSelectOpen && !debugOpen && !player.dead) ? "flex" : "none";
       dodgeBtn.classList.toggle("cool", player.dodgeCd>0);
+      // ダッシュはどこでも（村の中でも）使える移動用アクション
+      dashBtn.style.display = (!convo && !shopOpen && !menuOpen && !choiceOpen && !jobSelectOpen && !debugOpen && !player.dead) ? "flex" : "none";
+      dashBtn.classList.toggle("active", !!player.sprinting);
+      dashBtn.classList.toggle("tired", player.stamina<player.maxStamina*0.15);
       skillBtn.style.display = ((inField||dungeonFloor) && player.equippedSkill && !convo && !shopOpen && !menuOpen && !choiceOpen && !jobSelectOpen && !debugOpen && !player.dead) ? "flex" : "none";
       skillBtn.classList.toggle("cool", player.skillCd>0);
       const jobFilterAvail=jobsWithUnlockedSkill();
