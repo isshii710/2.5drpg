@@ -157,6 +157,21 @@
   /* アクションボタンの戦闘モード配色 */
   #act.combat{ background:radial-gradient(circle at 42% 35%, #ffb27a, #e0663a 68%, #b5432a); border-color:#ffd7bd; color:#2a1208; }
 
+  /* ---- 攻撃ボタン長押しで出るスキル選択（放射メニュー） ---- */
+  #radialMenu{ position:fixed; z-index:21; pointer-events:none; display:none; }
+  #radialMenu.show{ display:block; }
+  .radial-petal{ position:absolute; width:58px; height:58px; margin:-29px 0 0 -29px; border-radius:50%;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    font-family:"Hiragino Mincho ProN",serif; color:#2a1240; font-size:9px; line-height:1.25; text-align:center;
+    background:radial-gradient(circle at 42% 35%, #e8caff, #a878e0 72%, #7a4fb5);
+    border:2px solid #f0e0ff; box-shadow:0 4px 12px rgba(0,0,0,.5);
+    transition:transform .1s, background .1s; }
+  .radial-petal .ic{ font-size:17px; line-height:1; margin-bottom:2px; }
+  .radial-petal.cool{ opacity:.4; }
+  .radial-petal.selected{ transform:scale(1.22); background:radial-gradient(circle at 42% 35%, #fff2c0, #e6b84d 72%, #b58a2a); border-color:#fff6da; }
+  #radialCenter{ position:absolute; width:14px; height:14px; margin:-7px 0 0 -7px; border-radius:50%;
+    background:rgba(255,255,255,.5); border:1px solid rgba(255,255,255,.8); }
+
   /* ---- ゾーン表示 ---- */
   #banner{ position:fixed; top:34%; left:50%; transform:translate(-50%,-50%); z-index:14; pointer-events:none;
     text-align:center; opacity:0; transition:opacity .4s; }
@@ -375,6 +390,7 @@
     <div id="skillBtn">わざ</div>
     <div id="act">はなす</div>
   </div>
+  <div id="radialMenu"></div>
   <div id="prompt"></div>
   <div id="hint-controls">左：移動　／　右：こうげき　／　青：回避（村の外に魔物）</div>
 
@@ -1240,10 +1256,10 @@
     let ignaForgeMat=null, ignaForgeGlowMat=null;
     const VILLAGES=[
       { idx:0, id:"lumina", name:"ルミナ村", fieldName:"ルミナ郊外", origin:{x:0,z:0}, spawn:{x:40,z:0},
-        unlocked:()=>true,
+        unlocked:()=>true, monsterMult:1,
         roadFrom:[{ villageIdx:1, x:ARNICA_ORIGIN.x-48, z:ARNICA_ORIGIN.z, r:2.2 }] },
       { idx:1, id:"arnica", name:"水霧の村 アルニカ", fieldName:"アルニカ郊外", origin:ARNICA_ORIGIN,
-        spawn:{x:ARNICA_ORIGIN.x-40, z:ARNICA_ORIGIN.z}, corruptedMonsters:true, trialQuestId:"v2_trial",
+        spawn:{x:ARNICA_ORIGIN.x-40, z:ARNICA_ORIGIN.z}, corruptedMonsters:true, trialQuestId:"v2_trial", monsterMult:1.7,
         unlocked:()=>dungeonBossDefeated, lockedHint:"灯火の地下遺跡を突破してからだ…",
         roadFrom:[{ villageIdx:0, x:48, z:0, r:2.2 }, { villageIdx:2, x:IGNA_ORIGIN.x-48, z:IGNA_ORIGIN.z, r:2.2 }],
         onArrive:()=>{
@@ -1254,7 +1270,7 @@
           }
         } },
       { idx:2, id:"igna", name:"鍛火の村 イグナ", fieldName:"イグナ郊外", origin:IGNA_ORIGIN,
-        spawn:{x:IGNA_ORIGIN.x-40, z:IGNA_ORIGIN.z}, corruptedMonsters:true, trialQuestId:"v3_trial",
+        spawn:{x:IGNA_ORIGIN.x-40, z:IGNA_ORIGIN.z}, corruptedMonsters:true, trialQuestId:"v3_trial", monsterMult:2.6,
         unlocked:()=>!!player.villageEndings.arnica, lockedHint:"アルニカの泉の選択を終えてからだ…",
         roadFrom:[{ villageIdx:1, x:ARNICA_ORIGIN.x+48, z:ARNICA_ORIGIN.z, r:2.2 }],
         onArrive:()=>{
@@ -1653,9 +1669,10 @@
       { id:"whirl", name:"旋風斬り",   cost:2, cd:5.0,  ic:"🌀", desc:"周囲の敵をまとめて攻撃する" },
       { id:"focus", name:"強化の構え", cost:2, cd:12.0, ic:"🔥", desc:"6秒間、攻撃力が50%上がる" }
     ];
-    function useSkill(){
-      if(player.dead || !player.equippedSkill || player.skillCd>0) return;
-      const skill=SKILLS.find(s=>s.id===player.equippedSkill); if(!skill) return;
+    function useSkill(skillId){
+      const id=skillId||player.equippedSkill;
+      if(player.dead || !id || player.skillCd>0 || !player.skillsUnlocked[id]) return;
+      const skill=SKILLS.find(s=>s.id===id); if(!skill) return;
       const asp=ARMORS[player.armor].special;
       player.skillCd=skill.cd*(1-(asp&&asp.type==="skillcd"?asp.value:0));
       const atkNow=player.atk*(player.atkBuffT>0?1.5:1);
@@ -1858,9 +1875,15 @@
       do{ const a=Math.random()*7, rr=FIELD_R+4+Math.random()*(FOREST_R-FIELD_R-8);
         x=VILLAGE_ORIGIN.x+Math.cos(a)*rr; z=VILLAGE_ORIGIN.z+Math.sin(a)*rr; tries++;
       }while(tries<14 && (Math.hypot(x-player.x,z-player.z)<14 || dist0(x,z)<FIELD_R+2));
-      const T = Math.random()<RARE_SPAWN_CHANCE
+      const base = Math.random()<RARE_SPAWN_CHANCE
         ? RARE_MON_TYPES[(Math.random()*RARE_MON_TYPES.length)|0]
         : MON_TYPES[pickType()];
+      // 村が進むほど（ルミナ→アルニカ→イグナ）魔物が強くなり、経験値・ゴールドも多く得られる
+      const mult = (VILLAGES[currentVillageIdx] && VILLAGES[currentVillageIdx].monsterMult) || 1;
+      const T = mult===1 ? base : Object.assign({}, base, {
+        hp:Math.round(base.hp*mult), atk:Math.round(base.atk*mult), def:Math.round(base.def*mult),
+        exp:Math.round(base.exp*mult), gold:Math.round(base.gold*mult)
+      });
       const m=makeBillboard(T.tex,T.w,T.h); m.position.set(x,0,z);
       const corrupted = !T.flee && VILLAGES[currentVillageIdx] && VILLAGES[currentVillageIdx].corruptedMonsters;
       if(corrupted) m.material.color.setRGB(0.68,0.58,0.92);
@@ -2923,7 +2946,70 @@
       }
       doAttack();
     }
-    actBtn.addEventListener("pointerdown",e=>{ e.preventDefault(); tryAct(); });
+    // --- 攻撃ボタン長押し：習得済みのわざ・魔法を放射状に表示し、スライドして選ぶ（狙う方向は常に向いている方向） ---
+    const radialMenuEl=document.getElementById("radialMenu");
+    const ACT_HOLD_MS=300, RADIAL_R=98, RADIAL_DEADZONE=34, RADIAL_HIT=42;
+    let actPointerId=null, actHoldTimer=null, actHoldTriggered=false;
+    let radialActive=false, radialSkills=[], radialSelectedIdx=-1, radialCenter={x:0,y:0}, radialPetalPos=[], radialPetalEls=[];
+    function unlockedSkillList(){ return SKILLS.filter(s=>player.skillsUnlocked[s.id]); }
+    function openRadialMenu(cx,cy){
+      const list=unlockedSkillList(); if(!list.length) return false;
+      radialSkills=list; radialSelectedIdx=-1; radialCenter={x:cx,y:cy}; radialPetalPos=[]; radialPetalEls=[];
+      radialMenuEl.innerHTML="";
+      const centerEl=document.createElement("div"); centerEl.id="radialCenter";
+      centerEl.style.left=cx+"px"; centerEl.style.top=cy+"px"; radialMenuEl.appendChild(centerEl);
+      const n=list.length, baseAngle=-135*Math.PI/180, spread=(38*Math.PI/180);
+      list.forEach((s,i)=>{
+        const ang=baseAngle+(i-(n-1)/2)*spread;
+        const px=cx+Math.cos(ang)*RADIAL_R, py=cy+Math.sin(ang)*RADIAL_R;
+        const el=document.createElement("div"); el.className="radial-petal"+(player.skillCd>0?" cool":"");
+        el.style.left=px+"px"; el.style.top=py+"px";
+        el.innerHTML='<div class="ic">'+s.ic+'</div><div>'+s.name+'</div>';
+        radialMenuEl.appendChild(el);
+        radialPetalPos.push({x:px,y:py}); radialPetalEls.push(el);
+      });
+      radialMenuEl.classList.add("show"); radialActive=true;
+      return true;
+    }
+    function setRadialSelected(idx){
+      if(idx===radialSelectedIdx) return;
+      radialSelectedIdx=idx;
+      radialPetalEls.forEach((el,i)=>el.classList.toggle("selected", i===idx));
+    }
+    function updateRadialHover(px,py){
+      if(!radialActive) return;
+      if(Math.hypot(px-radialCenter.x,py-radialCenter.y)<RADIAL_DEADZONE){ setRadialSelected(-1); return; }
+      let best=-1,bestD=1e9;
+      radialPetalPos.forEach((p,i)=>{ const d=Math.hypot(px-p.x,py-p.y); if(d<bestD){bestD=d;best=i;} });
+      setRadialSelected(bestD<RADIAL_HIT*1.8 ? best : -1);
+    }
+    function closeRadialMenu(){
+      radialActive=false; radialMenuEl.classList.remove("show"); radialMenuEl.innerHTML="";
+      radialSkills=[]; radialPetalPos=[]; radialPetalEls=[]; radialSelectedIdx=-1;
+    }
+    actBtn.addEventListener("pointerdown",e=>{
+      e.preventDefault();
+      if(!actBtn.classList.contains("combat") || !unlockedSkillList().length){ tryAct(); return; }
+      actPointerId=e.pointerId; actHoldTriggered=false;
+      const rect=actBtn.getBoundingClientRect(), cx=rect.left+rect.width/2, cy=rect.top+rect.height/2;
+      clearTimeout(actHoldTimer);
+      actHoldTimer=setTimeout(()=>{ actHoldTriggered=true; openRadialMenu(cx,cy); }, ACT_HOLD_MS);
+    });
+    addEventListener("pointermove",e=>{
+      if(e.pointerId!==actPointerId || !radialActive) return;
+      updateRadialHover(e.clientX,e.clientY);
+    });
+    function endActHold(e){
+      if(e.pointerId!==actPointerId) return;
+      clearTimeout(actHoldTimer);
+      if(radialActive){
+        if(radialSelectedIdx>=0) useSkill(radialSkills[radialSelectedIdx].id);
+        closeRadialMenu();
+      } else if(!actHoldTriggered){ tryAct(); }
+      actPointerId=null;
+    }
+    addEventListener("pointerup",endActHold);
+    addEventListener("pointercancel",endActHold);
     dodgeBtn.addEventListener("pointerdown",e=>{ e.preventDefault(); doDodge(); });
     skillBtn.addEventListener("pointerdown",e=>{ e.preventDefault(); useSkill(); });
 
