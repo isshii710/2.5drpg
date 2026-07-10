@@ -2487,14 +2487,14 @@
     function onTreasureGuardianDefeated(m){
       const map=activeTreasureMap && activeTreasureMap.map;
       if(!map) return;
+      // 地図はどちらの種類も使い切りにせず、勝つたびにレベルが上がって道中の魔物やボスも強くなっていく
+      map.level=Math.min(10, map.level+1);
       if(map.kind==="demon"){
         const D=DEMON_LORDS[map.demonIdx];
         player.materials[D.matIdx]=(player.materials[D.matIdx]||0)+1;
         floatText(player.x,player.z,MATERIALS[D.matIdx].ic+" "+MATERIALS[D.matIdx].name+" を てにいれた","#ffd28a",true);
-        showBanner("魔王撃破！",D.name+"を打ち破った");
-        const idx=player.treasureMaps.findIndex(mm=>mm.uid===map.uid); if(idx>=0) player.treasureMaps.splice(idx,1);
+        showBanner("魔王撃破！",D.name+"を打ち破った・地図はLv"+map.level+"になった");
       } else {
-        map.level=Math.min(10, map.level+1);
         showBanner("地図の番人を撃破！","この宝の地図はLv"+map.level+"になった");
         floatText(player.x,player.z,"宝の地図 Lv"+map.level+"！","#e0a8ff",true);
       }
