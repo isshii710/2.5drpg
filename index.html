@@ -135,17 +135,10 @@
   #stats .clock{ margin-top:5px; padding-top:5px; border-top:1px solid rgba(230,194,104,.18);
     font-size:11px; color:#cbb8f0; letter-spacing:.03em; }
 
-  /* ---- ダッシュボタン ---- */
-  #dash{ position:absolute; left:calc(env(safe-area-inset-left,0) + 158px); bottom:calc(env(safe-area-inset-bottom,0) + 66px);
-    width:56px; height:56px; border-radius:50%; pointer-events:auto; touch-action:none;
-    display:none; align-items:center; justify-content:center; font-family:"Hiragino Mincho ProN",serif;
-    color:#1a2a08; font-size:12px;
-    background:radial-gradient(circle at 42% 35%, #eaffb0, #a8d34a 72%, #7aa82a);
-    border:2px solid #f2ffd0; box-shadow:0 5px 14px rgba(0,0,0,.5), inset 0 2px 3px rgba(255,255,255,.5);
-    opacity:.85; transition:transform .08s, opacity .15s; }
-  #dash.active{ opacity:1; box-shadow:0 0 18px 4px rgba(200,255,80,.8), inset 0 2px 3px rgba(255,255,255,.6); }
-  #dash.tired{ opacity:.35; }
-  #dash:active{ transform:scale(.92); }
+  /* ---- スティックを一定以上倒すとダッシュ（ノブの見た目で知らせる） ---- */
+  #knob.dashing{ background:radial-gradient(circle at 40% 35%, #eaffb0, #a8d34a); border-color:#f2ffd0;
+    box-shadow:0 4px 12px rgba(0,0,0,.5), inset 0 1px 0 #fff8, 0 0 16px 3px rgba(200,255,80,.75); }
+  #knob.tired{ background:radial-gradient(circle at 40% 35%, #d9d0b0, #8a7a4d); }
   /* ---- 回避ボタン ---- */
   #dodge{ position:absolute; right:calc(env(safe-area-inset-right,0) + 130px); bottom:calc(env(safe-area-inset-bottom,0) + 54px);
     width:66px; height:66px; border-radius:50%; pointer-events:auto; touch-action:none;
@@ -411,7 +404,6 @@
 
   <div id="hud">
     <div id="stick"><div id="knob"></div></div>
-    <div id="dash">ダッシュ</div>
     <div id="dodge">回避</div>
     <div id="skillBtn">わざ</div>
     <div id="act">はなす</div>
@@ -1881,7 +1873,7 @@
           s_xp=document.getElementById("s-xp"), s_gear=document.getElementById("s-gear"),
           statsEl=document.getElementById("stats"), banner=document.getElementById("banner"),
           dodgeBtn=document.getElementById("dodge"), skillBtn=document.getElementById("skillBtn"), skillJobBtn=document.getElementById("skillJobBtn"),
-          staminaBarEl=document.getElementById("s-stamina"), dashBtn=document.getElementById("dash");
+          staminaBarEl=document.getElementById("s-stamina");
     function updateHUD(){
       s_lv.textContent=player.level; s_gold.textContent=player.gold;
       s_hp.style.width=Math.max(0,player.hp)/player.maxHp*100+"%";
@@ -2923,9 +2915,10 @@
       if(e.key==="Shift"||e.key==="k"){ e.preventDefault(); doDodge(); } });
     addEventListener("keyup",e=>{ keys[e.key.toLowerCase()]=false; });
 
-    // スティック
+    // スティック（中心から一定以上倒すとダッシュ扱いになる）
     const stick=document.getElementById("stick"), knob=document.getElementById("knob");
-    let stickId=null, sc={x:0,y:0};
+    const DASH_STICK_RATIO=0.78;
+    let stickId=null, sc={x:0,y:0}, stickRatio=0;
     function stickStart(e){ const t=e.changedTouches?e.changedTouches[0]:e; stickId=(e.changedTouches?t.identifier:"m");
       const r=stick.getBoundingClientRect(); sc.x=r.left+r.width/2; sc.y=r.top+r.height/2; stickMove(e); }
     function stickMove(e){ if(stickId===null) return;
@@ -2933,19 +2926,21 @@
       if(e.changedTouches){ for(const tt of e.changedTouches){ if(tt.identifier===stickId){ t=tt; break; } } if(!t) return; }
       else t=e;
       let dx=t.clientX-sc.x, dy=t.clientY-sc.y; const max=48; const d=Math.hypot(dx,dy);
+      stickRatio=d/max;
       if(d>max){ dx*=max/d; dy*=max/d; }
       knob.style.transform=`translate(${dx}px,${dy}px)`;
+      knob.classList.toggle("dashing", stickRatio>=DASH_STICK_RATIO);
       input.x=dx/max; input.y=dy/max;
     }
     function stickEnd(e){ if(e.changedTouches){ let hit=false; for(const tt of e.changedTouches){ if(tt.identifier===stickId) hit=true; } if(!hit) return; }
-      stickId=null; input.x=0; input.y=0; knob.style.transform="translate(0,0)"; }
+      stickId=null; input.x=0; input.y=0; stickRatio=0; knob.classList.remove("dashing"); knob.style.transform="translate(0,0)"; }
     stick.addEventListener("touchstart",e=>{e.preventDefault();stickStart(e);},{passive:false});
     stick.addEventListener("touchmove",e=>{e.preventDefault();stickMove(e);},{passive:false});
     stick.addEventListener("touchend",e=>{e.preventDefault();stickEnd(e);},{passive:false});
     stick.addEventListener("touchcancel",e=>{e.preventDefault();stickEnd(e);},{passive:false});
     stick.addEventListener("mousedown",stickStart);
     addEventListener("mousemove",e=>{ if(stickId==="m") stickMove(e); });
-    addEventListener("mouseup",e=>{ if(stickId==="m"){ stickId=null; input.x=input.y=0; knob.style.transform="translate(0,0)"; } });
+    addEventListener("mouseup",e=>{ if(stickId==="m") stickEnd(e); });
 
     // アクションボタン
     const actBtn=document.getElementById("act");
@@ -3170,11 +3165,6 @@
     dodgeBtn.addEventListener("pointerdown",e=>{ e.preventDefault(); doDodge(); });
     skillBtn.addEventListener("pointerdown",e=>{ e.preventDefault(); useSkill(); });
     skillJobBtn.addEventListener("pointerdown",e=>{ e.preventDefault(); cycleSkillJobFilter(); });
-    dashBtn.addEventListener("pointerdown",e=>{ e.preventDefault(); player.dashHeld=true; });
-    dashBtn.addEventListener("pointerup",e=>{ e.preventDefault(); player.dashHeld=false; });
-    dashBtn.addEventListener("pointercancel",e=>{ player.dashHeld=false; });
-    addEventListener("keydown",e=>{ if(e.key==="Shift") player.dashHeld=true; });
-    addEventListener("keyup",e=>{ if(e.key==="Shift") player.dashHeld=false; });
 
     // ============================================================
     //  当たり判定 & 更新
@@ -3209,7 +3199,9 @@
 
       const canMove = !convo && !shopOpen && !menuOpen && !choiceOpen && !jobSelectOpen && !debugOpen && !player.dead;
       const walking = canMove && moving;
-      // スタミナ：ダッシュ中は消費して速く走れる。それ以外は自然回復し、走るほどスタミナのレベルが上がる
+      // スタミナ：移動パッドを中心から一定以上倒す（またはキーボードのCtrl）とダッシュ。消費して速く走れる。
+      // それ以外は自然回復し、走るほどスタミナのレベルが上がる
+      player.dashHeld = stickRatio>=DASH_STICK_RATIO || !!keys["control"];
       player.sprinting = walking && player.dashHeld && player.stamina>0.5;
       if(player.sprinting){ player.stamina=Math.max(0,player.stamina-18*dt); addStaminaExp(3*dt); }
       else if(player.stamina<player.maxStamina){ player.stamina=Math.min(player.maxStamina, player.stamina+10*dt); }
@@ -3338,10 +3330,7 @@
       // 回避ボタン（フィールドでのみ）
       dodgeBtn.style.display = ((inField||dungeonFloor) && !convo && !shopOpen && !menuOpen && !choiceOpen && !jobSelectOpen && !debugOpen && !player.dead) ? "flex" : "none";
       dodgeBtn.classList.toggle("cool", player.dodgeCd>0);
-      // ダッシュはどこでも（村の中でも）使える移動用アクション
-      dashBtn.style.display = (!convo && !shopOpen && !menuOpen && !choiceOpen && !jobSelectOpen && !debugOpen && !player.dead) ? "flex" : "none";
-      dashBtn.classList.toggle("active", !!player.sprinting);
-      dashBtn.classList.toggle("tired", player.stamina<player.maxStamina*0.15);
+      knob.classList.toggle("tired", player.stamina<player.maxStamina*0.15);
       skillBtn.style.display = ((inField||dungeonFloor) && player.equippedSkill && !convo && !shopOpen && !menuOpen && !choiceOpen && !jobSelectOpen && !debugOpen && !player.dead) ? "flex" : "none";
       skillBtn.classList.toggle("cool", player.skillCd>0);
       const jobFilterAvail=jobsWithUnlockedSkill();
