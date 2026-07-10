@@ -207,31 +207,32 @@
     box-shadow:0 1px 3px rgba(0,0,0,.5); display:none; }
   .monhp i{ display:block; height:100%; border-radius:4px; background:linear-gradient(180deg,#ff8f7a,#d63a2f); }
 
-  /* ---- ショップ画面 ---- */
-  #shop{ position:fixed; inset:0; z-index:40; display:none; align-items:center; justify-content:center;
+  /* ---- ショップ画面（宝物商・鍛冶工房も同じ見た目を共用） ---- */
+  #shop, #gacha, #craft{ position:fixed; inset:0; z-index:40; display:none; align-items:center; justify-content:center;
     background:rgba(8,6,16,.62); backdrop-filter:blur(2px); -webkit-backdrop-filter:blur(2px); }
-  #shop .panel{ width:min(94vw,460px); max-height:82vh; display:flex; flex-direction:column;
+  #shop .panel, #gacha .panel, #craft .panel{ width:min(94vw,460px); max-height:82vh; display:flex; flex-direction:column;
     background:linear-gradient(180deg, rgba(30,22,46,.98), rgba(18,13,30,.99));
     border:1px solid var(--gold-dim); border-radius:16px; box-shadow:0 16px 50px rgba(0,0,0,.6);
     overflow:hidden; }
-  #shop .head{ display:flex; justify-content:space-between; align-items:center; padding:14px 18px;
+  #shop .head, #gacha .head, #craft .head{ display:flex; justify-content:space-between; align-items:center; padding:14px 18px;
     border-bottom:1px solid rgba(230,194,104,.22); }
-  #shop .head #shop-name{ font-family:"Hiragino Mincho ProN",serif; color:var(--parch); font-size:18px; letter-spacing:.1em; }
-  #shop .head #shop-gold{ color:var(--gold); font-size:14px; }
-  #shop-list{ overflow-y:auto; padding:10px 12px; -webkit-overflow-scrolling:touch; }
-  #shop .item{ display:flex; align-items:center; gap:10px; padding:11px 12px; margin-bottom:8px;
+  #shop .head #shop-name, #gacha .head span:first-child, #craft .head span:first-child{ font-family:"Hiragino Mincho ProN",serif; color:var(--parch); font-size:18px; letter-spacing:.1em; }
+  #shop .head #shop-gold, #gacha .head #gacha-tickets, #craft .head #craft-gold{ color:var(--gold); font-size:14px; }
+  #shop-list, #gacha-list, #craft-list{ overflow-y:auto; padding:10px 12px; -webkit-overflow-scrolling:touch; }
+  #shop .item, #gacha .item, #craft .item{ display:flex; align-items:center; gap:10px; padding:11px 12px; margin-bottom:8px;
     background:rgba(255,255,255,.03); border:1px solid rgba(230,194,104,.18); border-radius:11px; cursor:pointer;
     transition:background .12s, border-color .12s; }
-  #shop .item:active{ background:rgba(230,194,104,.12); }
-  #shop .item.equipped{ border-color:var(--light); box-shadow:inset 0 0 0 1px rgba(127,230,214,.35); }
-  #shop .item.locked{ opacity:.55; }
-  #shop .item .ic{ font-size:22px; width:26px; text-align:center; }
-  #shop .item .nm{ flex:1; color:var(--parch); }
-  #shop .item .nm small{ display:block; color:#bcae90; font-size:11px; margin-top:2px; }
-  #shop .item .pr{ font-size:13px; color:var(--gold); text-align:right; min-width:64px; }
-  #shop .item .pr .tag{ display:block; font-size:11px; margin-top:2px; }
-  #shop .item .pr .own{ color:var(--light); } #shop .item .pr .eq{ color:#fff; }
-  #shop-close{ margin:10px 14px 16px; padding:12px; border:none; border-radius:10px; cursor:pointer;
+  #shop .item:active, #gacha .item:active, #craft .item:active{ background:rgba(230,194,104,.12); }
+  #shop .item.equipped, #craft .item.equipped{ border-color:var(--light); box-shadow:inset 0 0 0 1px rgba(127,230,214,.35); }
+  #shop .item.locked, #gacha .item.locked, #craft .item.locked{ opacity:.55; cursor:default; }
+  #shop .item .ic, #gacha .item .ic, #craft .item .ic{ font-size:22px; width:26px; text-align:center; }
+  #shop .item .nm, #gacha .item .nm, #craft .item .nm{ flex:1; color:var(--parch); }
+  #shop .item .nm small, #gacha .item .nm small, #craft .item .nm small{ display:block; color:#bcae90; font-size:11px; margin-top:2px; }
+  #shop .item .pr, #gacha .item .pr, #craft .item .pr{ font-size:13px; color:var(--gold); text-align:right; min-width:64px; }
+  #shop .item .pr .tag, #gacha .item .pr .tag, #craft .item .pr .tag{ display:block; font-size:11px; margin-top:2px; }
+  #shop .item .pr .own, #craft .item .pr .own{ color:var(--light); } #shop .item .pr .eq, #craft .item .pr .eq{ color:#fff; }
+  #gacha .sec-title, #craft .sec-title{ font-size:12px; color:var(--gold); letter-spacing:.1em; margin:2px 12px 8px; }
+  #shop-close, #gacha-close, #craft-close{ margin:10px 14px 16px; padding:12px; border:none; border-radius:10px; cursor:pointer;
     font-family:"Hiragino Mincho ProN",serif; color:var(--ink); letter-spacing:.14em; font-size:15px;
     background:linear-gradient(180deg,#f0dfae,#d3ad4d); box-shadow:0 4px 12px rgba(0,0,0,.4); }
 
@@ -440,6 +441,18 @@
     <button id="shop-close">とじる</button>
   </div></div>
 
+  <div id="gacha"><div class="panel">
+    <div class="head"><span>宝物商</span><span id="gacha-tickets">🎫 0</span></div>
+    <div id="gacha-list"></div>
+    <button id="gacha-close">とじる</button>
+  </div></div>
+
+  <div id="craft"><div class="panel">
+    <div class="head"><span>鍛冶工房</span><span id="craft-gold">🪙 0</span></div>
+    <div id="craft-list"></div>
+    <button id="craft-close">とじる</button>
+  </div></div>
+
   <div id="menuBtn">☰</div>
   <div id="debugBtn">🔧</div>
   <div id="minimap-wrap">
@@ -486,6 +499,10 @@
         <span id="menu-potion-count">🧪 回復薬 ×0</span>
         <button id="menu-potion-use">つかう</button>
       </div>
+
+      <div class="sec-title">素材・宝の地図（🎫 <b id="m-tickets">0</b>）</div>
+      <div class="glist" id="m-material-list"></div>
+      <div class="glist" id="m-map-list"></div>
 
       <div class="sec-title">クエスト</div>
       <div class="glist" id="m-quest-list"></div>
@@ -551,6 +568,15 @@
         <button class="dbtn wide" data-act="unlockAllSkills">スキルを全習得</button>
         <button class="dbtn" data-act="staminaFull">スタミナ全回復</button>
         <button class="dbtn wide" data-act="staminaLvUp">スタミナレベル+3</button>
+      </div>
+
+      <div class="sec-title">宝の地図・クラフト</div>
+      <div class="row">
+        <button class="dbtn" data-act="addTickets">ガチャチケット+20</button>
+        <button class="dbtn" data-act="addTickets100">ガチャチケット+100</button>
+        <button class="dbtn wide" data-act="addAllMaterials">素材を全種類 大量入手</button>
+        <button class="dbtn" data-act="addTestMap">宝の地図（Lv5）を入手</button>
+        <button class="dbtn wide" data-act="addTestDemonMap">魔王の地図を入手</button>
       </div>
 
       <div class="sec-title">時間・天候</div>
@@ -1008,6 +1034,15 @@
       ellip(g,9,12,6,5,"#f4e6d0");                                    // 枕
       rect(g,20,4,2,11,"#caa64d"); ellip(g,21,4,3,3,"#ffe9a8");       // 常夜灯
     }, 32, 32); }
+    function makeMapIcon(){ return pixTex((g)=>{
+      rect(g,4,4,24,24,"#e8d3a0"); rect(g,4,4,24,3,"#caa864");
+      rect(g,8,10,6,1,"#8a6a3a"); rect(g,16,13,9,1,"#8a6a3a"); rect(g,9,18,14,1,"#8a6a3a");
+      ellip(g,20,10,2,2,"#c0303a");
+    }, 32, 32); }
+    function makeAnvilIcon(){ return pixTex((g)=>{
+      rect(g,6,20,20,4,"#2a2a30"); rect(g,10,14,12,6,"#4a4a52"); rect(g,4,12,8,4,"#4a4a52");
+      rect(g,10,8,10,6,"#5a5a64"); rect(g,20,8,4,3,"#6a6a74");
+    }, 32, 32); }
 
     // 地面テクスチャ（草＋土の小道）
     function groundTexture(){
@@ -1113,7 +1148,7 @@
     function makeInteriorRoom(building, idx){
       const ox=INTERIOR_BASE_X+idx*INTERIOR_GAP, oz=0;
       const halfW=4.6, halfD=4.2, doorLocalZ=halfD-0.6;
-      const isShop = building.type==="weapon"||building.type==="armor";
+      const isShop = building.type==="weapon"||building.type==="armor"||building.type==="gacha"||building.type==="craft";
       const floor=new THREE.Mesh(new THREE.PlaneGeometry(halfW*2,halfD*2),
         new THREE.MeshLambertMaterial({color:0x8a6a44}));
       floor.rotation.x=-Math.PI/2; floor.position.set(ox,0.01,oz); scene.add(floor);
@@ -1514,6 +1549,8 @@
     makeHouse(-8.5,-6.5, 0.15, 0xd9b48a, 0x9a4636, {label:"武器屋", type:"weapon"});
     makeHouse( 8.5,-6.5,-0.15, 0xc9b8d0, 0x3f6f8a, {label:"防具屋", type:"armor"});
     makeHouse( 16,-6, -0.3, 0xdccab0, 0x6b3f5a, {label:"宿屋", type:"inn"});
+    makeHouse(-17, 9,  0.3, 0xcdb0d8, 0x6a3f9a, {label:"宝物商", type:"gacha"});
+    makeHouse( 19,-13,-0.3, 0xb8c9d4, 0x4a4a52, {label:"鍛冶工房", type:"craft"});
     const swordSign=makeBillboard(makeSwordIcon(),1.5,1.5); swordSign.position.set(-8.5,2.0,-3.0);
     const shieldSign=makeBillboard(makeShieldIcon(),1.5,1.5); shieldSign.position.set(8.5,2.0,-3.0);
     const toolBuilding=buildings.find(b=>b.type==="tool");
@@ -1527,6 +1564,18 @@
       const dx=Math.sin(innBuilding.rot), dz=Math.cos(innBuilding.rot);
       const innSign=makeBillboard(makeInnIcon(),1.5,1.5);
       innSign.position.set(innBuilding.x+dx*2.6, 2.0, innBuilding.z+dz*2.6);
+    }
+    const gachaBuilding=buildings.find(b=>b.type==="gacha");
+    if(gachaBuilding){
+      const dx=Math.sin(gachaBuilding.rot), dz=Math.cos(gachaBuilding.rot);
+      const mapSign=makeBillboard(makeMapIcon(),1.5,1.5);
+      mapSign.position.set(gachaBuilding.x+dx*2.6, 2.0, gachaBuilding.z+dz*2.6);
+    }
+    const craftBuilding=buildings.find(b=>b.type==="craft");
+    if(craftBuilding){
+      const dx=Math.sin(craftBuilding.rot), dz=Math.cos(craftBuilding.rot);
+      const anvilSign=makeBillboard(makeAnvilIcon(),1.5,1.5);
+      anvilSign.position.set(craftBuilding.x+dx*2.6, 2.0, craftBuilding.z+dz*2.6);
     }
 
     // --- 建物内部を生成し、武器屋・防具屋・道具屋・宿屋には店主を配置 ---
@@ -1544,6 +1593,12 @@
       } else if(b.type==="inn"){
         addNPC({ x:b.interior.ox, z:b.interior.oz-b.interior.halfD+2.1, name:"宿屋 ノラ", shop:"inn",
           col:{hair:"#e8d0a0",body:"#8a5a54",body2:"#6a3e3a"} });
+      } else if(b.type==="gacha"){
+        addNPC({ x:b.interior.ox, z:b.interior.oz-b.interior.halfD+2.1, name:"旅の商人 バロン", shop:"gacha",
+          col:{hair:"#3a2a4a",body:"#6a3f9a",body2:"#4a2a76"} });
+      } else if(b.type==="craft"){
+        addNPC({ x:b.interior.ox, z:b.interior.oz-b.interior.halfD+2.1, name:"鍛冶士 ゴードン", shop:"craft",
+          col:{hair:"#5a5a5a",body:"#4a4a52",body2:"#33333a"} });
       }
     });
 
@@ -1644,7 +1699,12 @@
       {name:"巨人殺しの斧",atk:34, range:2.6, arc:1.6, cd:0.72, price:4600, ic:"🪓", desc:"敵の防御力を35%無視する、大型の斧。",
         special:{type:"pierce", value:0.35}},
       {name:"賢者の秘杖", atk:20, range:2.2, arc:1.7, cd:0.48, price:4000, ic:"🔯", desc:"一撃ごとにHPを5回復する、魔力の秘杖。",
-        special:{type:"selfheal", value:5}}
+        special:{type:"selfheal", value:5}},
+      // --- クラフト専用（店には並ばず、鍛冶工房で素材と交換して作る） ---
+      {name:"魔鋼の剣",     atk:40, range:2.3, arc:1.4, cd:0.40, price:0, ic:"⚔️", desc:"宝の地図で集めた鉱石を鍛え上げた剣。", craftOnly:true},
+      {name:"竜殺しの槍",   atk:52, range:3.2, arc:0.9, cd:0.48, price:0, ic:"🔱", desc:"竜の鱗を鍛え込んだ、貫く長槍。", craftOnly:true},
+      {name:"業魔の大剣",   atk:66, range:2.8, arc:1.8, cd:0.62, price:0, ic:"🔥", desc:"業火の魔王の魔石を鍛え込んだ、災禍の大剣。会心率+30%。",
+        craftOnly:true, special:{type:"crit", value:0.3}}
     ];
     const ARMORS=[
       {name:"旅の服",     def:1,  hp:0,  price:0,    ic:"👕", desc:"ただの服。"},
@@ -1659,7 +1719,12 @@
       {name:"影の外套",   def:14, hp:36, price:2800, ic:"🌑", desc:"回避のクールタイムが35%短くなる外套。",
         special:{type:"dodgecd", value:0.35}},
       {name:"竜殺しの重鎧", def:34, hp:80, price:4800, ic:"🐲", desc:"受けるダメージを12%軽減する重鎧。",
-        special:{type:"reduce", value:0.12}}
+        special:{type:"reduce", value:0.12}},
+      // --- クラフト専用（店には並ばず、鍛冶工房で素材と交換して作る） ---
+      {name:"魔鋼の鎧",     def:44, hp:76,  price:0, ic:"🛡️", desc:"宝の地図で集めた鉱石を鍛え上げた鎧。", craftOnly:true},
+      {name:"竜鱗の重鎧・改", def:56, hp:100, price:0, ic:"🐉", desc:"竜の鱗をさらに鍛え直した、最上級の重鎧。", craftOnly:true},
+      {name:"氷結の法衣",   def:40, hp:88,  price:0, ic:"❄️", desc:"氷結の魔王の魔石を編み込んだ法衣。被ダメージ18%軽減。",
+        craftOnly:true, special:{type:"reduce", value:0.18}}
     ];
     // --- アクセサリー（道具屋で購入・装備）と道具屋の品ぞろえ ---
     const ACCESSORIES=[
@@ -1669,6 +1734,26 @@
     const TOOLS=[
       {name:"回復薬", kind:"potion",    heal:30,        price:25,  ic:"🧪", desc:"HPを30回復する。いくつでも持てる。"},
       {name:"ランタン", kind:"accessory", accIdx:1, price:180, ic:"🏮", desc:"暗いダンジョンで足元と周囲を照らす。"}
+    ];
+
+    // --- 素材（宝の地図の宝箱から手に入る。クラフト専用装備の材料になる） ---
+    const MATERIALS=[
+      {name:"銅の欠片",   ic:"🟤", tier:1, desc:"どこにでもある、ありふれた金属の欠片。"},
+      {name:"鉄鉱石",     ic:"⚙️", tier:2, desc:"硬く、加工しやすい鉱石。"},
+      {name:"銀の鉱石",   ic:"⚪", tier:3, desc:"美しい輝きを持つ、やや貴重な鉱石。"},
+      {name:"魔晶石",     ic:"🔷", tier:4, desc:"魔力をたたえた、淡く光る結晶。"},
+      {name:"竜の鱗",     ic:"🐉", tier:5, desc:"かつて竜が纏っていたという、伝説の鱗。"},
+      {name:"業火の魔石", ic:"🔥", tier:0, demon:"inferno", desc:"業火の魔王が落とした、灼熱の魔石。"},
+      {name:"氷結の魔石", ic:"❄️", tier:0, demon:"frost",   desc:"氷結の魔王が落とした、極寒の魔石。"}
+    ];
+    // --- クラフトのレシピ（鍛冶工房で、素材とゴールドを消費して作る） ---
+    const CRAFT_RECIPES=[
+      { kind:"weapon", idx:WEAPONS.length-3, gold:800,  mats:{1:4, 2:2} },
+      { kind:"weapon", idx:WEAPONS.length-2, gold:2200, mats:{3:3, 4:2} },
+      { kind:"weapon", idx:WEAPONS.length-1, gold:3600, mats:{4:3, 5:1} },
+      { kind:"armor",  idx:ARMORS.length-3,  gold:900,  mats:{1:3, 2:3} },
+      { kind:"armor",  idx:ARMORS.length-2,  gold:2400, mats:{3:2, 4:3} },
+      { kind:"armor",  idx:ARMORS.length-1,  gold:3600, mats:{4:3, 6:1} }
     ];
 
     // --- プレイヤー戦闘ステータス ---
@@ -1682,7 +1767,8 @@
       sp:0, skillsUnlocked:{}, equippedSkill:null, skillJobFilter:null, skillCd:0, atkBuffT:0,
       iframes:0, dodgeCd:0, attackCd:0, attackAnimT:0, dash:null, knock:null, dead:false,
       baseStamina:40, stamina:40, maxStamina:40, staminaLv:1, staminaExp:0, staminaExpNext:15,
-      dashHeld:false, sprinting:false
+      dashHeld:false, sprinting:false,
+      gachaTickets:0, materials:{}, treasureMaps:[]
     });
     // --- 転職システム（固定の職業から選ぶ。ステータス倍率と髪・マントの色が変わる） ---
     const JOBS=[
@@ -2030,10 +2116,15 @@
     function killMonster(m){
       addGold(m.T.gold); addExp(m.T.exp);
       floatText(m.x,m.z,"+"+m.T.exp+"EXP  +"+m.T.gold+"G","#8fe6d6");
+      if(!m.treasureGuardian && Math.random()<0.15){
+        player.gachaTickets=(player.gachaTickets||0)+1;
+        floatText(m.x,m.z,"🎫 ガチャチケット+1","#e0a8ff");
+      }
       scene.remove(m.mesh); scene.remove(m.sh); m.hpEl.remove();
       const bi=billboards.indexOf(m.mesh); if(bi>=0) billboards.splice(bi,1);
       const mi=monsters.indexOf(m); if(mi>=0) monsters.splice(mi,1);
       if(m.isBoss) onBossDefeated();
+      if(m.treasureGuardian) onTreasureGuardianDefeated(m);
       if(m.corrupted){ const v=VILLAGES[m.villageIdx]; if(v && v.trialQuestId) progressQuest(v.trialQuestId,1); }
     }
     function updateMonsters(dt,t){
@@ -2161,7 +2252,7 @@
     const lanternLight=new THREE.PointLight(0xffcf8a,0,17,1.1); lanternLight.position.set(0,-40,0); scene.add(lanternLight);
     const lanternGlow=makeBillboard(flameTex,0.6,0.85); lanternGlow.visible=false; lanternGlow.material.color.setHex(0xffe6b0);
     function updateLantern(t){
-      const lit = player.accessory===1 && dungeonFloor>0 && !player.dead;
+      const lit = player.accessory===1 && (dungeonFloor>0 || !!activeTreasureMap) && !player.dead;
       if(lit){
         lanternLight.position.set(player.x, 1.8, player.z);
         lanternLight.intensity=5.5+Math.sin(t*7)*0.4;
@@ -2171,6 +2262,22 @@
 
     // ダンジョン専用モンスター（部屋の範囲内に留める・階数に応じて強化）
     const BOSS_TYPE={ name:"封じられし者", tex:makeOgre(), w:5.6,h:6.4, r:2.1, hp:520, atk:26, def:9, exp:260, gold:320, speed:1.35, aggro:16, atkRange:2.6 };
+    // --- 魔王（魔王の地図の最深部にのみ出現。倒すとその魔王専用の魔石を落とす） ---
+    function makeDemonLord(sk,sk2,eye,horn){ return pixTex((g)=>{
+      ellip(g,20,28,15,14,sk); ellip(g,20,28,15,13,sk2);              // 胴
+      rect(g,14,3,12,9,sk); rect(g,14,3,12,2,sk2);                    // 頭
+      rect(g,10,1,4,5,horn); rect(g,26,1,4,5,horn);                   // 角
+      rect(g,16,8,3,3,eye); rect(g,21,8,3,3,eye);                     // 目
+      rect(g,16,12,8,2,"#140a08");                                     // 口
+      rect(g,4,15,6,18,sk); rect(g,30,15,6,18,sk);                    // 腕
+      rect(g,13,39,7,7,sk2); rect(g,20,39,7,7,sk2);                   // 脚
+    }, 40, 48); }
+    const DEMON_LORDS=[
+      { id:"inferno", name:"業火の魔王 ヴォルガザン", tex:makeDemonLord("#8a2a1e","#5f1a12","#ffcf5a","#241814"),
+        w:6.2,h:7.4, r:2.3, hp:900, atk:34, def:13, exp:600, gold:520, speed:1.4, aggro:18, atkRange:2.8, matIdx:5 },
+      { id:"frost", name:"氷結の魔王 グラキエス", tex:makeDemonLord("#3a5a8a","#26405f","#bfe8ff","#e8f4ff"),
+        w:6.2,h:7.4, r:2.3, hp:840, atk:30, def:18, exp:600, gold:520, speed:1.3, aggro:18, atkRange:2.8, matIdx:6 }
+    ];
     function spawnDungeonMonster(room, typeIdx, mult, pos){
       const base=MON_TYPES[typeIdx];
       const T=Object.assign({},base,{ hp:Math.round(base.hp*mult), atk:Math.round(base.atk*mult),
@@ -2296,6 +2403,275 @@
     function goDungeonDown(){ if(!dungeonFloor || dungeonFloor>=DUNGEON_FLOORS_TOTAL) return; goToDungeonFloor(dungeonFloor+1); }
     function goDungeonUp(){ if(!dungeonFloor) return; if(dungeonFloor===1){ exitDungeonToSurface(); return; } goToDungeonFloor(dungeonFloor-1); }
 
+    // ============================================================
+    //  宝の地図：ガチャチケットで手に入る、専用のミニダンジョン（1階＝探索、2階＝ボス部屋）
+    //  部屋の外殻は使い回し、地図を開くたびに宝箱・魔物・ボスだけを差し替える
+    // ============================================================
+    const TREASURE_BASE_X=3000, TREASURE_GAP=70;
+    const treasureRooms=[], treasureChests=[];
+    let activeTreasureMap=null, treasureReturnPos=null, mapUidSeq=1;
+    function makeTreasureRoom(idx){
+      const ox=TREASURE_BASE_X+idx*TREASURE_GAP, oz=0;
+      const halfW=9, halfD=8.5, entryZ=halfD-1.3, wallH=3.4;
+      const floorMesh=new THREE.Mesh(new THREE.PlaneGeometry(halfW*2,halfD*2), new THREE.MeshLambertMaterial({color:0x342b3c}));
+      floorMesh.rotation.x=-Math.PI/2; floorMesh.position.set(ox,0.01,oz); scene.add(floorMesh);
+      const outerFloor=new THREE.Mesh(new THREE.PlaneGeometry(50,50), new THREE.MeshBasicMaterial({color:0x040308}));
+      outerFloor.rotation.x=-Math.PI/2; outerFloor.position.set(ox,-0.05,oz); scene.add(outerFloor);
+      const wallMat=new THREE.MeshLambertMaterial({color:0x4f4358});
+      const bw=new THREE.Mesh(new THREE.BoxGeometry(halfW*2,wallH,0.3),wallMat); bw.position.set(ox,wallH/2,oz-halfD); scene.add(bw);
+      const lw=new THREE.Mesh(new THREE.BoxGeometry(0.3,wallH,halfD*2),wallMat); lw.position.set(ox-halfW,wallH/2,oz); scene.add(lw);
+      const rw=new THREE.Mesh(new THREE.BoxGeometry(0.3,wallH,halfD*2),wallMat); rw.position.set(ox+halfW,wallH/2,oz); scene.add(rw);
+      [[-4.5,-2],[4.5,-2],[-4.5,3],[4.5,3]].forEach(p=>{ const px=ox+p[0], pz=oz+p[1];
+        const pil=new THREE.Mesh(new THREE.CylinderGeometry(0.55,0.65,wallH,8),wallMat);
+        pil.position.set(px,wallH/2,pz); scene.add(pil); addSolid(px,pz,0.65); });
+      const torchSpots=[ {x:ox-halfW+0.4,y:1.9,z:oz-2}, {x:ox+halfW-0.4,y:1.9,z:oz-2}, {x:ox,y:1.9,z:oz-halfD+0.4} ];
+      let stairsDown=null;
+      if(idx===0){
+        const sx=ox, sz=oz-halfD+1.4;
+        addGateRing(sx,sz,{rimCol:0x6a5580,hole:true});
+        makeBillboard(stairsTex,1.4,1.2).position.set(sx,0.02,sz);
+        stairsDown={x:sx,z:sz,r:1.5};
+      }
+      addGateRing(ox, oz+entryZ, {rimCol:0x7a6a90,hole:false});
+      const room={ ox, oz, halfW, halfD, entryZ, torchSpots, stairsDown };
+      treasureRooms[idx]=room;
+      return room;
+    }
+    makeTreasureRoom(0); makeTreasureRoom(1);
+
+    function clearTreasureInstance(){
+      for(let i=monsters.length-1;i>=0;i--){ const m=monsters[i]; if(m.treasureInstance){
+        scene.remove(m.mesh); scene.remove(m.sh); m.hpEl.remove();
+        const bi=billboards.indexOf(m.mesh); if(bi>=0) billboards.splice(bi,1);
+        monsters.splice(i,1); } }
+      for(let i=treasureChests.length-1;i>=0;i--){ scene.remove(treasureChests[i].mesh); treasureChests.splice(i,1); }
+    }
+    function materialTierForLevel(level){
+      let t=1+Math.floor((level-1)/2)+(Math.random()<0.3?1:0);
+      return Math.max(1, Math.min(5, t));
+    }
+    function spawnTreasureChest(room, level){
+      const cx=room.ox+(Math.random()<0.5?-6.2:6.2), cz=room.oz+(Math.random()*2-1);
+      const mesh=makeBillboard(chestTex,1.1,1.0); mesh.position.set(cx,0,cz); addShadow(cx,cz,1.6);
+      treasureChests.push({ x:cx, z:cz, r:1.4, mesh, opened:false, level });
+    }
+    function openTreasureChest(chest){
+      if(chest.opened) return;
+      chest.opened=true; chest.mesh.material.color.setRGB(0.5,0.5,0.5);
+      if(Math.random()<0.25){ const g=(30+((Math.random()*40)|0))*chest.level; addGold(g); floatText(chest.x,chest.z,"+"+g+"G","#e6c268",true); }
+      else{ const tier=materialTierForLevel(chest.level), matIdx=tier-1, mat=MATERIALS[matIdx], n=1+((Math.random()*2)|0);
+        player.materials[matIdx]=(player.materials[matIdx]||0)+n;
+        floatText(chest.x,chest.z,mat.ic+" "+mat.name+" ×"+n,"#bfe8ff",true); }
+      saveGame(false);
+    }
+    function spawnTreasureGuardian(room, map){
+      let T, x=room.ox, z=room.oz-room.halfD+2.6;
+      if(map.kind==="demon"){
+        const D=DEMON_LORDS[map.demonIdx], mult=1+(map.level-1)*0.28;
+        T=Object.assign({},D,{ hp:Math.round(D.hp*mult), atk:Math.round(D.atk*mult), def:Math.round(D.def*mult),
+          exp:Math.round(D.exp*mult), gold:Math.round(D.gold*mult) });
+      } else {
+        const mult=1.4+(map.level-1)*0.32;
+        T=Object.assign({},BOSS_TYPE,{ name:"地図の番人",
+          hp:Math.round(BOSS_TYPE.hp*0.55*mult), atk:Math.round(BOSS_TYPE.atk*0.7*mult), def:Math.round(BOSS_TYPE.def*0.7*mult),
+          exp:60*map.level, gold:80*map.level });
+      }
+      const m=makeBillboard(T.tex,T.w,T.h); m.position.set(x,0,z);
+      const sh=new THREE.Mesh(new THREE.PlaneGeometry(T.r*2.6,T.r*2.6),shadowMat); sh.rotation.x=-Math.PI/2; sh.position.set(x,0.03,z); scene.add(sh);
+      const hpEl=document.createElement("div"); hpEl.className="monhp"; hpEl.innerHTML="<i></i>"; document.body.appendChild(hpEl);
+      monsters.push({ T, mesh:m, sh, x, z, hp:T.hp, maxHp:T.hp, atkCd:1, vx:0, vz:0, ph:0, hurtT:0, hpEl, hpShowT:0, face:1, isBoss:true,
+        treasureInstance:true, treasureGuardian:true,
+        bounds:{ minX:room.ox-room.halfW+1, maxX:room.ox+room.halfW-1, minZ:room.oz-room.halfD+1, maxZ:room.oz+room.halfD-1 } });
+    }
+    function onTreasureGuardianDefeated(m){
+      const map=activeTreasureMap && activeTreasureMap.map;
+      if(!map) return;
+      if(map.kind==="demon"){
+        const D=DEMON_LORDS[map.demonIdx];
+        player.materials[D.matIdx]=(player.materials[D.matIdx]||0)+1;
+        floatText(player.x,player.z,MATERIALS[D.matIdx].ic+" "+MATERIALS[D.matIdx].name+" を てにいれた","#ffd28a",true);
+        showBanner("魔王撃破！",D.name+"を打ち破った");
+        const idx=player.treasureMaps.findIndex(mm=>mm.uid===map.uid); if(idx>=0) player.treasureMaps.splice(idx,1);
+      } else {
+        map.level=Math.min(10, map.level+1);
+        showBanner("地図の番人を撃破！","この宝の地図はLv"+map.level+"になった");
+        floatText(player.x,player.z,"宝の地図 Lv"+map.level+"！","#e0a8ff",true);
+      }
+      saveGame(false);
+      setTimeout(()=>{ if(activeTreasureMap) exitTreasureMap(); }, 1600);
+    }
+    function treasureGoDown(){
+      if(!activeTreasureMap || activeTreasureMap.floor!==1) return;
+      activeTreasureMap.floor=2; clearTreasureInstance();
+      const room=treasureRooms[1];
+      spawnTreasureGuardian(room, activeTreasureMap.map);
+      player.x=room.ox; player.z=room.oz+room.entryZ; player.facing="up";
+      placeTorches(room.torchSpots); setZoneVisuals("dungeon");
+      showBanner("最深部","何かの気配がする…");
+      transitionCooldown=0.8;
+    }
+    function treasureGoUp(){
+      if(!activeTreasureMap) return;
+      if(activeTreasureMap.floor===1){ exitTreasureMap(); return; }
+      activeTreasureMap.floor=1; clearTreasureInstance();
+      const room=treasureRooms[0], map=activeTreasureMap.map;
+      spawnTreasureChest(room, map.level); spawnTreasureChest(room, map.level);
+      const mult=1+(map.level-1)*0.22;
+      [{x:room.ox-3,z:room.oz-3},{x:room.ox+3,z:room.oz-3}].forEach(p=>{
+        spawnDungeonMonster(room, pickType(), mult, p);
+        monsters[monsters.length-1].treasureInstance=true;
+      });
+      player.x=room.ox; player.z=room.oz+room.entryZ; player.facing="up";
+      placeTorches(room.torchSpots); setZoneVisuals("dungeon");
+      showBanner("宝の地図 Lv"+map.level,"1階");
+      transitionCooldown=0.8;
+    }
+    function enterTreasureMap(map){
+      if(dungeonFloor || indoorHouse || activeTreasureMap) return;
+      treasureReturnPos={ x:player.x, z:player.z };
+      activeTreasureMap={ map, floor:1 };
+      clearTreasureInstance();
+      const room=treasureRooms[0];
+      spawnTreasureChest(room, map.level); spawnTreasureChest(room, map.level);
+      const mult=1+(map.level-1)*0.22;
+      [{x:room.ox-3,z:room.oz-3},{x:room.ox+3,z:room.oz-3}].forEach(p=>{
+        spawnDungeonMonster(room, pickType(), mult, p);
+        monsters[monsters.length-1].treasureInstance=true;
+      });
+      player.x=room.ox; player.z=room.oz+room.entryZ; player.facing="up";
+      placeTorches(room.torchSpots); setZoneVisuals("dungeon");
+      const title=map.kind==="demon" ? "魔王の地図（"+DEMON_LORDS[map.demonIdx].name+"）" : "宝の地図 Lv"+map.level;
+      showBanner(title,"1階");
+      closeGacha();
+      transitionCooldown=0.8;
+    }
+    function exitTreasureMap(){
+      if(!activeTreasureMap) return;
+      clearTreasureInstance();
+      activeTreasureMap=null;
+      player.x=treasureReturnPos.x; player.z=treasureReturnPos.z; player.facing="down";
+      hideTorches(); setZoneVisuals("outdoor");
+      showBanner("ルミナ郊外","FIELD ・ 魔物出現");
+      transitionCooldown=0.8;
+    }
+    // --- 宝の地図ガチャ（10枚で1回、100枚で11連。魔王の地図は100枚で1回） ---
+    function rollMapLevel(){
+      const r=Math.random();
+      if(r<0.45) return 1+((Math.random()*2)|0);
+      if(r<0.78) return 3+((Math.random()*2)|0);
+      if(r<0.94) return 5+((Math.random()*2)|0);
+      return 7+((Math.random()*3)|0);
+    }
+    function pullNormalMap(){ return { uid:mapUidSeq++, kind:"normal", level:rollMapLevel() }; }
+    function pullDemonMap(){ return { uid:mapUidSeq++, kind:"demon", level:rollMapLevel(), demonIdx:(Math.random()*DEMON_LORDS.length)|0 }; }
+
+    // --- 宝物商UI（ガチャチケットで地図を引く／持っている地図を開く） ---
+    let gachaOpen=false;
+    const gachaEl=document.getElementById("gacha"), gachaTicketsEl=document.getElementById("gacha-tickets"), gachaListEl=document.getElementById("gacha-list");
+    function openGacha(){ gachaOpen=true; gachaEl.style.display="flex"; buildGachaList(); }
+    function closeGacha(){ gachaOpen=false; gachaEl.style.display="none"; }
+    document.getElementById("gacha-close").addEventListener("click",closeGacha);
+    function mapRow(map){
+      const kindLabel = map.kind==="demon" ? "魔王の地図（"+DEMON_LORDS[map.demonIdx].name+"）" : "宝の地図";
+      const ic = map.kind==="demon" ? "👹" : "🗺️";
+      const row=document.createElement("div"); row.className="item";
+      row.innerHTML='<div class="ic">'+ic+'</div><div class="nm">'+kindLabel+'<small>Lv'+map.level+'</small></div><div class="pr"><span class="tag">タップで開く</span></div>';
+      row.addEventListener("click",()=>enterTreasureMap(map));
+      return row;
+    }
+    function buildGachaList(){
+      gachaTicketsEl.textContent="🎫 "+(player.gachaTickets||0);
+      gachaListEl.innerHTML="";
+      const t=player.gachaTickets||0;
+      const secA=document.createElement("div"); secA.className="sec-title"; secA.textContent="宝の地図ガチャ"; gachaListEl.appendChild(secA);
+      const row10=document.createElement("div"); row10.className="item"+(t<10?" locked":"");
+      row10.innerHTML='<div class="ic">🗺️</div><div class="nm">地図を1枚引く<small>宝の地図（レベルはランダム）</small></div><div class="pr">10枚<span class="tag">'+(t>=10?"タップで引く":"チケット不足")+'</span></div>';
+      row10.addEventListener("click",()=>doGachaPull("normal10"));
+      gachaListEl.appendChild(row10);
+      const row100=document.createElement("div"); row100.className="item"+(t<100?" locked":"");
+      row100.innerHTML='<div class="ic">🗺️</div><div class="nm">地図を11枚引く（11連）<small>100枚で11枚引ける、お得な連続ガチャ</small></div><div class="pr">100枚<span class="tag">'+(t>=100?"タップで引く":"チケット不足")+'</span></div>';
+      row100.addEventListener("click",()=>doGachaPull("normal100"));
+      gachaListEl.appendChild(row100);
+      const secB=document.createElement("div"); secB.className="sec-title"; secB.textContent="魔王の地図ガチャ"; gachaListEl.appendChild(secB);
+      const rowDemon=document.createElement("div"); rowDemon.className="item"+(t<100?" locked":"");
+      rowDemon.innerHTML='<div class="ic">👹</div><div class="nm">魔王の地図を引く<small>最深部に魔王が出現する、特別な地図</small></div><div class="pr">100枚<span class="tag">'+(t>=100?"タップで引く":"チケット不足")+'</span></div>';
+      rowDemon.addEventListener("click",()=>doGachaPull("demon100"));
+      gachaListEl.appendChild(rowDemon);
+      const secC=document.createElement("div"); secC.className="sec-title"; secC.textContent="持っている地図（"+player.treasureMaps.length+"枚）"; gachaListEl.appendChild(secC);
+      if(!player.treasureMaps.length){
+        const emp=document.createElement("div"); emp.className="item locked"; emp.innerHTML='<div class="ic">—</div><div class="nm">まだ地図を持っていない</div>';
+        gachaListEl.appendChild(emp);
+      } else {
+        player.treasureMaps.slice().sort((a,b)=>b.level-a.level).forEach(map=>gachaListEl.appendChild(mapRow(map)));
+      }
+    }
+    function doGachaPull(kind){
+      const t=player.gachaTickets||0;
+      if(kind==="normal10"){
+        if(t<10) return; player.gachaTickets-=10;
+        const map=pullNormalMap(); player.treasureMaps.push(map);
+        floatText(player.x,player.z,"宝の地図（Lv"+map.level+"）を てにいれた","#e0a8ff",true);
+      } else if(kind==="normal100"){
+        if(t<100) return; player.gachaTickets-=100;
+        let best=0;
+        for(let i=0;i<11;i++){ const map=pullNormalMap(); player.treasureMaps.push(map); if(map.level>best) best=map.level; }
+        floatText(player.x,player.z,"宝の地図を11枚 てにいれた！（最高Lv"+best+"）","#e0a8ff",true);
+      } else if(kind==="demon100"){
+        if(t<100) return; player.gachaTickets-=100;
+        const map=pullDemonMap(); player.treasureMaps.push(map);
+        floatText(player.x,player.z,"魔王の地図（"+DEMON_LORDS[map.demonIdx].name+"）を てにいれた","#ff9a6a",true);
+      }
+      saveGame(false); buildGachaList();
+    }
+
+    // --- 鍛冶工房UI（素材とゴールドを消費してクラフト専用装備を作る） ---
+    let craftOpen=false;
+    const craftEl=document.getElementById("craft"), craftGoldEl=document.getElementById("craft-gold"), craftListEl=document.getElementById("craft-list");
+    function openCraft(){ craftOpen=true; craftEl.style.display="flex"; buildCraftList(); }
+    function closeCraft(){ craftOpen=false; craftEl.style.display="none"; }
+    document.getElementById("craft-close").addEventListener("click",closeCraft);
+    function canCraft(recipe){
+      if(player.gold<recipe.gold) return false;
+      for(const k in recipe.mats){ if((player.materials[k]||0) < recipe.mats[k]) return false; }
+      return true;
+    }
+    function buildCraftList(){
+      craftGoldEl.textContent="🪙 "+player.gold;
+      craftListEl.innerHTML="";
+      const secA=document.createElement("div"); secA.className="sec-title"; secA.textContent="素材"; craftListEl.appendChild(secA);
+      const has = MATERIALS.map((m,i)=>({m,i,n:player.materials[i]||0})).filter(x=>x.n>0);
+      if(!has.length){
+        const emp=document.createElement("div"); emp.className="item locked";
+        emp.innerHTML='<div class="ic">—</div><div class="nm">まだ素材を持っていない<small>宝の地図の宝箱で手に入る</small></div>';
+        craftListEl.appendChild(emp);
+      } else {
+        has.forEach(x=>{ const row=document.createElement("div"); row.className="item locked";
+          row.innerHTML='<div class="ic">'+x.m.ic+'</div><div class="nm">'+x.m.name+'</div><div class="pr">×'+x.n+'</div>';
+          craftListEl.appendChild(row); });
+      }
+      const secB=document.createElement("div"); secB.className="sec-title"; secB.textContent="レシピ"; craftListEl.appendChild(secB);
+      CRAFT_RECIPES.forEach((recipe,ri)=>{
+        const list = recipe.kind==="weapon"?WEAPONS:ARMORS, owned=recipe.kind==="weapon"?player.ownedW:player.ownedA, it=list[recipe.idx];
+        const already=!!owned[recipe.idx], ok=canCraft(recipe);
+        const matsTxt=Object.keys(recipe.mats).map(k=>MATERIALS[+k].ic+"×"+recipe.mats[k]).join(" ");
+        const row=document.createElement("div"); row.className="item"+(already?" equipped":"")+((!already&&!ok)?" locked":"");
+        row.innerHTML='<div class="ic">'+it.ic+'</div><div class="nm">'+it.name+'<small>'+it.desc+'／'+matsTxt+'・🪙'+recipe.gold+'</small></div>'
+          +'<div class="pr">'+(already?'<span class="eq">製作済</span>':(ok?'<span class="tag">タップで製作</span>':'<span class="tag">材料不足</span>'))+'</div>';
+        if(!already) row.addEventListener("click",()=>doCraft(ri));
+        craftListEl.appendChild(row);
+      });
+    }
+    function doCraft(ri){
+      const recipe=CRAFT_RECIPES[ri];
+      const list = recipe.kind==="weapon"?WEAPONS:ARMORS, owned=recipe.kind==="weapon"?player.ownedW:player.ownedA;
+      if(owned[recipe.idx] || !canCraft(recipe)) return;
+      player.gold-=recipe.gold;
+      for(const k in recipe.mats) player.materials[k]-=recipe.mats[k];
+      owned[recipe.idx]=true;
+      floatText(player.x,player.z,"「"+list[recipe.idx].name+"」を つくった","#e6c268",true);
+      updateHUD(); buildCraftList(); saveGame(false);
+    }
+
     // --- プレイヤー：移動補助・攻撃・回避・被弾 ---
     function movePlayer(dx,dz){
       if(dx && !collides(player.x+dx,player.z,player.r)) player.x+=dx;
@@ -2304,6 +2680,9 @@
         player.x=Math.max(it.ox-it.halfW+0.4, Math.min(it.ox+it.halfW-0.4, player.x));
         player.z=Math.max(it.oz-it.halfD+0.3, Math.min(it.oz+it.halfD-0.2, player.z));
       } else if(dungeonFloor){ const room=dungeonRooms[dungeonFloor-1];
+        player.x=Math.max(room.ox-room.halfW+0.4, Math.min(room.ox+room.halfW-0.4, player.x));
+        player.z=Math.max(room.oz-room.halfD+0.3, Math.min(room.oz+room.halfD-0.3, player.z));
+      } else if(activeTreasureMap){ const room=treasureRooms[activeTreasureMap.floor-1];
         player.x=Math.max(room.ox-room.halfW+0.4, Math.min(room.ox+room.halfW-0.4, player.x));
         player.z=Math.max(room.oz-room.halfD+0.3, Math.min(room.oz+room.halfD-0.3, player.z));
       } else {
@@ -2372,7 +2751,8 @@
       player.dead=true; player.hp=0; updateHUD(); showBanner("力尽きた…","村で目を覚ます");
       setTimeout(()=>{
         player.x=VILLAGE_ORIGIN.x; player.z=VILLAGE_ORIGIN.z+7; player.dead=false; player.hp=player.maxHp; player.iframes=1.5; player.dash=null; player.knock=null;
-        indoorHouse=null; dungeonFloor=0; hideTorches(); setZoneVisuals("outdoor"); updateHUD();
+        indoorHouse=null; dungeonFloor=0; if(activeTreasureMap){ clearTreasureInstance(); activeTreasureMap=null; }
+        hideTorches(); setZoneVisuals("outdoor"); updateHUD();
       },1500);
     }
 
@@ -2392,6 +2772,7 @@
       const equipped=shopType==="weapon"?player.weapon:player.armor;
       shopListEl.innerHTML="";
       list.forEach((it,idx)=>{
+        if(it.craftOnly && !owned[idx]) return;   // クラフト専用装備は未所持の間、店には並ばない
         const isOwned=!!owned[idx], isEq=(idx===equipped), canBuy=player.gold>=it.price;
         const row=document.createElement("div");
         row.className="item"+(isEq?" equipped":"")+((!isOwned&&!canBuy)?" locked":"");
@@ -2570,6 +2951,7 @@
         "Lv"+player.level+" HP "+Math.ceil(player.hp)+"/"+player.maxHp+" ／ 🪙"+player.gold+" ／ EXP "+Math.floor(player.exp)+"/"+player.expNext+" ／ 職業: "+JOBS[player.job||0].name+"\n"+
         "SP "+(player.sp||0)+" ／ 装備スキル: "+(player.equippedSkill?SKILLS.find(s=>s.id===player.equippedSkill).name:"なし")+"\n"+
         "攻撃魔力 "+player.magicAtk+" ／ 回復魔力 "+player.magicHeal+" ／ スタミナ "+Math.ceil(player.stamina)+"/"+player.maxStamina+"（Lv"+(player.staminaLv||1)+"）\n"+
+        "🎫 "+(player.gachaTickets||0)+" ／ 宝の地図 "+player.treasureMaps.length+"枚 ／ 素材 "+Object.values(player.materials).reduce((a,b)=>a+b,0)+"個\n"+
         "地下遺跡ボス撃破: "+(dungeonBossDefeated?"済":"未")+" ／ アルニカの選択: "+(player.villageEndings.arnica||"未選択")+" ／ イグナの選択: "+(player.villageEndings.igna||"未選択");
     }
     function forceQuestActive(id){ const st=player.quests[id]; if(st && st.status==="locked") st.status="active"; }
@@ -2617,6 +2999,14 @@
       addSP:()=>{ player.sp=(player.sp||0)+3; if(menuOpen) updateMenu(); },
       staminaFull:()=>{ player.stamina=player.maxStamina; updateHUD(); if(menuOpen) updateMenu(); },
       staminaLvUp:()=>{ addStaminaExp(player.staminaExpNext*3); if(menuOpen) updateMenu(); },
+      addTickets:()=>{ player.gachaTickets=(player.gachaTickets||0)+20; if(menuOpen) updateMenu(); if(gachaOpen) buildGachaList(); },
+      addTickets100:()=>{ player.gachaTickets=(player.gachaTickets||0)+100; if(menuOpen) updateMenu(); if(gachaOpen) buildGachaList(); },
+      addAllMaterials:()=>{ MATERIALS.forEach((m,i)=>{ player.materials[i]=(player.materials[i]||0)+10; });
+        if(menuOpen) updateMenu(); if(craftOpen) buildCraftList(); },
+      addTestMap:()=>{ player.treasureMaps.push({ uid:mapUidSeq++, kind:"normal", level:5 });
+        if(menuOpen) updateMenu(); if(gachaOpen) buildGachaList(); },
+      addTestDemonMap:()=>{ player.treasureMaps.push({ uid:mapUidSeq++, kind:"demon", level:3, demonIdx:(Math.random()*DEMON_LORDS.length)|0 });
+        if(menuOpen) updateMenu(); if(gachaOpen) buildGachaList(); },
       unlockAllSkills:()=>{
         SKILLS.forEach(s=>{ player.skillsUnlocked[s.id]=true; });
         if(!player.equippedSkill) player.equippedSkill=SKILLS[0].id;
@@ -2631,7 +3021,7 @@
       saveNow:()=>{ saveGame(true); },
       clearSave:()=>{ if(confirm("セーブデータを削除しますか？（この場でのプレイ内容は消えません）")) clearSaveData(); }
     };
-    debugBtn.addEventListener("click",()=>{ if(debugOpen) closeDebugMenu(); else if(!convo && !shopOpen && !menuOpen && !choiceOpen && !jobSelectOpen) openDebugMenu(); });
+    debugBtn.addEventListener("click",()=>{ if(debugOpen) closeDebugMenu(); else if(!convo && !shopOpen && !gachaOpen && !craftOpen && !menuOpen && !choiceOpen && !jobSelectOpen) openDebugMenu(); });
     document.getElementById("debug-close").addEventListener("click",closeDebugMenu);
     document.getElementById("debug-body").addEventListener("click",(e)=>{
       const btn=e.target.closest(".dbtn"); if(!btn) return;
@@ -2651,7 +3041,7 @@
     }
     function saveGame(manual){
       try{
-        const pos = indoorHouse ? savedOutdoor : (dungeonFloor ? dungeonReturnPos : { x:player.x, z:player.z });
+        const pos = indoorHouse ? savedOutdoor : (dungeonFloor ? dungeonReturnPos : (activeTreasureMap ? treasureReturnPos : { x:player.x, z:player.z }));
         const data={ v:1, level:player.level, exp:player.exp, expNext:player.expNext, gold:player.gold,
           baseMaxHp:player.baseMaxHp, baseAtk:player.baseAtk, baseDef:player.baseDef, hp:player.hp,
           baseMagicAtk:player.baseMagicAtk, baseMagicHeal:player.baseMagicHeal,
@@ -2662,6 +3052,7 @@
           sp:player.sp, skillsUnlocked:player.skillsUnlocked, equippedSkill:player.equippedSkill, skillJobFilter:player.skillJobFilter,
           quests:player.quests, greeted:Array.from(greetedSet), dungeonBossDefeated,
           totalGameHours, weather, currentVillageIdx,
+          gachaTickets:player.gachaTickets, materials:player.materials, treasureMaps:player.treasureMaps, mapUidSeq,
           x:pos.x, z:pos.z, savedAt:Date.now() };
         localStorage.setItem(SAVE_KEY, JSON.stringify(data));
         lastSaveAt=data.savedAt; updateSaveStatusLabel();
@@ -2683,9 +3074,11 @@
           accessory:d.accessory||0, ownedAcc:d.ownedAcc||{0:true}, potions:d.potions||0,
           job:d.job||0, villageEndings:d.villageEndings||{}, corruptionPower:!!d.corruptionPower,
           sp:d.sp||0, skillsUnlocked:d.skillsUnlocked||{}, equippedSkill:d.equippedSkill||null, skillJobFilter:d.skillJobFilter||null,
+          gachaTickets:d.gachaTickets||0, materials:d.materials||{}, treasureMaps:d.treasureMaps||[],
           // 新しく追加されたクエストIDも既定値で持てるよう、既定値に保存分を上書きする形でマージする
           quests:d.quests?Object.assign({},player.quests,d.quests):player.quests,
           x:(typeof d.x==="number")?d.x:0, z:(typeof d.z==="number")?d.z:7 });
+        if(typeof d.mapUidSeq==="number") mapUidSeq=d.mapUidSeq;
         if(Array.isArray(d.greeted)){ greetedSet.clear(); d.greeted.forEach(n=>greetedSet.add(n)); }
         if(d.dungeonBossDefeated) dungeonBossDefeated=true;
         if(typeof d.totalGameHours==="number") totalGameHours=d.totalGameHours;
@@ -2719,11 +3112,12 @@
           m_wlist=document.getElementById("m-weapon-list"), m_alist=document.getElementById("m-armor-list"),
           m_acclist=document.getElementById("m-acc-list"), m_qlist=document.getElementById("m-quest-list"),
           m_skilllist=document.getElementById("m-skill-list"), m_sp=document.getElementById("m-sp"),
+          m_tickets=document.getElementById("m-tickets"), m_matlist=document.getElementById("m-material-list"), m_maplist=document.getElementById("m-map-list"),
           m_potionCount=document.getElementById("menu-potion-count"), m_potionUse=document.getElementById("menu-potion-use"),
           m_saveBtn=document.getElementById("menu-save-btn"), m_saveStatus=document.getElementById("menu-save-status");
     function openMenu(){ menuOpen=true; menuEl.style.display="flex"; updateMenu(); }
     function closeMenu(){ menuOpen=false; menuEl.style.display="none"; }
-    menuBtn.addEventListener("click",()=>{ if(menuOpen) closeMenu(); else if(!convo && !shopOpen && !choiceOpen && !jobSelectOpen && !debugOpen) openMenu(); });
+    menuBtn.addEventListener("click",()=>{ if(menuOpen) closeMenu(); else if(!convo && !shopOpen && !gachaOpen && !craftOpen && !choiceOpen && !jobSelectOpen && !debugOpen) openMenu(); });
     document.getElementById("menu-close").addEventListener("click",closeMenu);
     m_saveBtn.addEventListener("click",()=>saveGame(true));
     m_potionUse.addEventListener("click",()=>{ usePotion(); updateMenu(); });
@@ -2784,6 +3178,31 @@
         m_qlist.appendChild(row);
       });
     }
+    function buildMaterialsAndMapsList(){
+      m_tickets.textContent=player.gachaTickets||0;
+      m_matlist.innerHTML="";
+      const has=MATERIALS.map((m,i)=>({m,i,n:player.materials[i]||0})).filter(x=>x.n>0);
+      if(!has.length){
+        const emp=document.createElement("div"); emp.className="item locked"; emp.innerHTML='<div class="ic">—</div><div class="nm">まだ素材を持っていない</div>';
+        m_matlist.appendChild(emp);
+      } else {
+        has.forEach(x=>{ const row=document.createElement("div"); row.className="item locked";
+          row.innerHTML='<div class="ic">'+x.m.ic+'</div><div class="nm">'+x.m.name+'</div><div class="pr">×'+x.n+'</div>';
+          m_matlist.appendChild(row); });
+      }
+      m_maplist.innerHTML="";
+      if(!player.treasureMaps.length){
+        const emp=document.createElement("div"); emp.className="item locked"; emp.innerHTML='<div class="ic">—</div><div class="nm">まだ宝の地図を持っていない<small>宝物商でガチャチケットと交換できる</small></div>';
+        m_maplist.appendChild(emp);
+      } else {
+        player.treasureMaps.slice().sort((a,b)=>b.level-a.level).forEach(map=>{
+          const kindLabel = map.kind==="demon" ? "魔王の地図（"+DEMON_LORDS[map.demonIdx].name+"）" : "宝の地図";
+          const row=document.createElement("div"); row.className="item locked";
+          row.innerHTML='<div class="ic">'+(map.kind==="demon"?"👹":"🗺️")+'</div><div class="nm">'+kindLabel+'<small>Lv'+map.level+'／宝物商で開ける</small></div>';
+          m_maplist.appendChild(row);
+        });
+      }
+    }
     function updateMenu(){
       m_lv.textContent=player.level; m_gold.textContent=player.gold;
       m_hp.style.width=Math.max(0,player.hp)/player.maxHp*100+"%";
@@ -2805,6 +3224,7 @@
       buildSkillList();
       m_potionCount.textContent="🧪 回復薬 ×"+(player.potions||0);
       m_potionUse.disabled = !player.potions || player.hp>=player.maxHp;
+      buildMaterialsAndMapsList();
       buildQuestList();
       updateSaveStatusLabel();
     }
@@ -2953,7 +3373,7 @@
     // --- ミニマップ：現在地とクエストの目的地を示す ---
     const mmCanvas=document.getElementById("minimap"), mmCtx=mmCanvas.getContext("2d"), mmLabel=document.getElementById("minimap-label");
     const MM_C=66, MM_R=60;
-    const SHOP_MM_COLORS={ weapon:"#e0663a", armor:"#5a8fc9", tool:"#5fae64", inn:"#c97fd4" };
+    const SHOP_MM_COLORS={ weapon:"#e0663a", armor:"#5a8fc9", tool:"#5fae64", inn:"#c97fd4", gacha:"#c99a3a", craft:"#8a8a94" };
     // 中心（村）付近を広げ、外側（フィールド）を圧縮する半径べき乗マッピング。村の中の店が見分けやすくなる
     function mmRadius(worldDist){ return Math.pow(worldDist/WORLD,0.58)*MM_R; }
     function mmPoint(x,z){
@@ -3065,23 +3485,25 @@
         mmCtx.strokeStyle="rgba(230,194,104,0.9)"; mmCtx.lineWidth=1.6; mmCtx.stroke();
         mmCtx.beginPath(); mmCtx.arc(qp.mx,qp.my,2.2,0,Math.PI*2); mmCtx.fillStyle="#ffd76b"; mmCtx.fill();
       }
-      if(!indoorHouse && !dungeonFloor){
+      if(!indoorHouse && !dungeonFloor && !activeTreasureMap){
         const pp=mmPoint(player.x,player.z), [fx,fz]=faceVec(), ang=Math.atan2(fx,fz);
         mmCtx.save(); mmCtx.translate(pp.mx,pp.my); mmCtx.rotate(ang);
         mmCtx.beginPath(); mmCtx.moveTo(0,-5); mmCtx.lineTo(3.4,4); mmCtx.lineTo(-3.4,4); mmCtx.closePath();
         mmCtx.fillStyle="#7fe6d6"; mmCtx.fill(); mmCtx.restore();
       }
-      mmLabel.textContent = indoorHouse ? indoorHouse.label+"\n（屋内）" : dungeonFloor ? "地下遺跡\n"+dungeonFloor+"階" : "";
-      mmLabel.style.display = (indoorHouse||dungeonFloor) ? "flex" : "none";
+      mmLabel.textContent = indoorHouse ? indoorHouse.label+"\n（屋内）" : dungeonFloor ? "地下遺跡\n"+dungeonFloor+"階"
+        : activeTreasureMap ? "宝の地図\n"+activeTreasureMap.floor+"階" : "";
+      mmLabel.style.display = (indoorHouse||dungeonFloor||activeTreasureMap) ? "flex" : "none";
       mmLabel.style.whiteSpace="pre-line";
     }
     function tryAct(){
       if(convo){ advanceConvo(); return; }
-      if(shopOpen || menuOpen || choiceOpen || jobSelectOpen || debugOpen) return;
+      if(shopOpen || gachaOpen || craftOpen || menuOpen || choiceOpen || jobSelectOpen || debugOpen) return;
       if(nearTarget){
         if(nearTarget.type==="door"){ enterBuilding(nearTarget.building); return; }
         if(nearTarget.type==="exit"){ exitBuilding(); return; }
         if(nearTarget.type==="chest"){ openChest(nearTarget.chest); return; }
+        if(nearTarget.type==="tchest"){ openTreasureChest(nearTarget.chest); return; }
         if(GREET_NAMES.has(nearTarget.name) && !greetedSet.has(nearTarget.name)){
           greetedSet.add(nearTarget.name); progressQuest("greet",1);
         } else if(V2_GREET_NAMES.has(nearTarget.name) && !greetedSet.has(nearTarget.name)){
@@ -3090,6 +3512,8 @@
           greetedSet.add(nearTarget.name); progressQuest("v3_greet",1);
         }
         if(nearTarget.shop==="inn") restAtInn();
+        else if(nearTarget.shop==="gacha") openGacha();
+        else if(nearTarget.shop==="craft") openCraft();
         else if(nearTarget.shop) openShop(nearTarget.shop, nearTarget.name);
         else {
           if(nearTarget.name==="門番 ダグ") acceptDungeonQuests();
@@ -3197,7 +3621,7 @@
       player.skillCd=Math.max(0,(player.skillCd||0)-dt);
       player.atkBuffT=Math.max(0,(player.atkBuffT||0)-dt);
 
-      const canMove = !convo && !shopOpen && !menuOpen && !choiceOpen && !jobSelectOpen && !debugOpen && !player.dead;
+      const canMove = !convo && !shopOpen && !gachaOpen && !craftOpen && !menuOpen && !choiceOpen && !jobSelectOpen && !debugOpen && !player.dead;
       const walking = canMove && moving;
       // スタミナ：移動パッドを中心から一定以上倒す（またはキーボードのCtrl）とダッシュ。消費して速く走れる。
       // それ以外は自然回復し、走るほどスタミナのレベルが上がる
@@ -3253,7 +3677,7 @@
       updateShots(dt);
       updateFireBursts(dt);
       // 魔物は屋外にいる間、定期的にランダムな位置へ湧く（村にいても裏でタイマーは進む）
-      spawnT-=dt; if(spawnT<=0){ spawnT=2.4; if(!indoorHouse && !dungeonFloor) spawnMonster(); }
+      spawnT-=dt; if(spawnT<=0){ spawnT=2.4; if(!indoorHouse && !dungeonFloor && !activeTreasureMap) spawnMonster(); }
       // 村・屋内での自然回復（ダンジョンでは回復しない）
       const safeZone = !!indoorHouse || (!dungeonFloor && dist0(player.x,player.z)<FIELD_R);
       if(safeZone && !player.dead && player.hp<player.maxHp){
@@ -3263,7 +3687,7 @@
       if(armorSp && armorSp.type==="regen" && !player.dead && player.hp<player.maxHp){
         player.hp=Math.min(player.maxHp, player.hp+player.maxHp*armorSp.value*dt); updateHUD(); }
       // ゾーン表示切替（屋内・ダンジョンにいる間は判定自体を止める。松明は揺らめかせる）
-      if(!indoorHouse && !dungeonFloor){
+      if(!indoorHouse && !dungeonFloor && !activeTreasureMap){
         const nowField = dist0(player.x,player.z)>FIELD_R;
         if(nowField!==inField){ inField=nowField;
           const v=VILLAGES[currentVillageIdx];
@@ -3271,7 +3695,7 @@
       }
       // 街道：村の外れまで歩くと隣村へ自動的に旅立つ
       roadTransitionCooldown=Math.max(0,roadTransitionCooldown-dt);
-      if(roadTransitionCooldown<=0 && !indoorHouse && !dungeonFloor && !convo && !shopOpen && !menuOpen && !choiceOpen && !jobSelectOpen && !debugOpen && !player.dead){
+      if(roadTransitionCooldown<=0 && !indoorHouse && !dungeonFloor && !activeTreasureMap && !convo && !shopOpen && !gachaOpen && !craftOpen && !menuOpen && !choiceOpen && !jobSelectOpen && !debugOpen && !player.dead){
         roadCheck: for(const v of VILLAGES){
           if(!v.roadFrom) continue;
           for(const rf of v.roadFrom){
@@ -3282,14 +3706,14 @@
         }
       }
       if(bannerT>0){ bannerT-=dt; if(bannerT<=0) banner.style.opacity="0"; }
-      if(dungeonFloor){ torchLights.forEach((l,i)=>{ if(l.intensity>0) l.intensity=2.8+Math.sin(t*9+i*2)*0.4+Math.random()*0.15; }); }
+      if(dungeonFloor||activeTreasureMap){ torchLights.forEach((l,i)=>{ if(l.intensity>0) l.intensity=2.8+Math.sin(t*9+i*2)*0.4+Math.random()*0.15; }); }
       updateLantern(t);
       updateTimeWeather(dt, player.x, player.z);
 
       // ダンジョン入口・階段は歩いて踏むだけで自動的に切り替わる（攻撃ボタンと場所を取り合わないように）
       transitionCooldown=Math.max(0,transitionCooldown-dt);
-      if(transitionCooldown<=0 && !convo && !shopOpen && !menuOpen && !choiceOpen && !jobSelectOpen && !debugOpen && !player.dead){
-        if(!indoorHouse && !dungeonFloor){
+      if(transitionCooldown<=0 && !convo && !shopOpen && !gachaOpen && !craftOpen && !menuOpen && !choiceOpen && !jobSelectOpen && !debugOpen && !player.dead){
+        if(!indoorHouse && !dungeonFloor && !activeTreasureMap){
           const ddx=player.x-dungeonEntrance.x, ddz=player.z-dungeonEntrance.z;
           if(ddx*ddx+ddz*ddz < dungeonEntrance.r*dungeonEntrance.r) enterDungeon();
         } else if(dungeonFloor){
@@ -3298,6 +3722,12 @@
           if(udx*udx+udz*udz < 1.4*1.4) goDungeonUp();
           else if(room.stairsDown){ const sdx=player.x-room.stairsDown.x, sdz=player.z-room.stairsDown.z;
             if(sdx*sdx+sdz*sdz < room.stairsDown.r*room.stairsDown.r) goDungeonDown(); }
+        } else if(activeTreasureMap){
+          const room=treasureRooms[activeTreasureMap.floor-1];
+          const ux=room.ox, uz=room.oz+room.entryZ, udx=player.x-ux, udz=player.z-uz;
+          if(udx*udx+udz*udz < 1.4*1.4) treasureGoUp();
+          else if(room.stairsDown){ const sdx=player.x-room.stairsDown.x, sdz=player.z-room.stairsDown.z;
+            if(sdx*sdx+sdz*sdz < room.stairsDown.r*room.stairsDown.r) treasureGoDown(); }
         }
       }
 
@@ -3309,17 +3739,19 @@
         all=all.concat([{ x:it.ox, z:it.oz+it.doorLocalZ, r:1.3, name:"出口", type:"exit" }]);
       } else if(dungeonFloor){
         all=all.concat(dungeonChests.filter(c=>!c.opened && c.floor===dungeonFloor).map(c=>({ x:c.x, z:c.z, r:c.r, name:"宝箱", type:"chest", chest:c })));
+      } else if(activeTreasureMap){
+        all=all.concat(treasureChests.filter(c=>!c.opened).map(c=>({ x:c.x, z:c.z, r:c.r, name:"宝箱", type:"tchest", chest:c })));
       } else {
         all=all.concat(buildings.map(b=>({ x:b.doorX, z:b.doorZ, r:b.r, name:b.label, type:"door", building:b })));
       }
       for(const o of all){ const dx=player.x-o.x,dz=player.z-o.z; const d=dx*dx+dz*dz;
         if(d<o.r*o.r && d<best){ best=d; nearTarget=o; } }
       if(convo){ actBtn.textContent="つぎへ"; actBtn.classList.remove("combat"); promptEl.style.display="none"; }
-      else if(shopOpen || menuOpen || choiceOpen || jobSelectOpen || debugOpen){ promptEl.style.display="none"; }
+      else if(shopOpen || gachaOpen || craftOpen || menuOpen || choiceOpen || jobSelectOpen || debugOpen){ promptEl.style.display="none"; }
       else if(nearTarget){
         actBtn.classList.add("show"); actBtn.classList.remove("combat");
         actBtn.textContent = nearTarget.type==="door" ? "はいる" : nearTarget.type==="exit" ? "でる"
-          : nearTarget.type==="chest" ? "あける"
+          : (nearTarget.type==="chest"||nearTarget.type==="tchest") ? "あける"
           : nearTarget.shop==="inn" ? "やすむ" : nearTarget.shop ? "みせ"
           : (examinables.some(e=>e.name===nearTarget.name)?"しらべる":"はなす");
         const s=worldToScreen(nearTarget.x,2.6,nearTarget.z);
@@ -3328,13 +3760,13 @@
         actBtn.classList.add("show","combat"); actBtn.textContent="こうげき"; promptEl.style.display="none";
       }
       // 回避ボタン（フィールドでのみ）
-      dodgeBtn.style.display = ((inField||dungeonFloor) && !convo && !shopOpen && !menuOpen && !choiceOpen && !jobSelectOpen && !debugOpen && !player.dead) ? "flex" : "none";
+      dodgeBtn.style.display = ((inField||dungeonFloor||activeTreasureMap) && !convo && !shopOpen && !gachaOpen && !craftOpen && !menuOpen && !choiceOpen && !jobSelectOpen && !debugOpen && !player.dead) ? "flex" : "none";
       dodgeBtn.classList.toggle("cool", player.dodgeCd>0);
       knob.classList.toggle("tired", player.stamina<player.maxStamina*0.15);
-      skillBtn.style.display = ((inField||dungeonFloor) && player.equippedSkill && !convo && !shopOpen && !menuOpen && !choiceOpen && !jobSelectOpen && !debugOpen && !player.dead) ? "flex" : "none";
+      skillBtn.style.display = ((inField||dungeonFloor||activeTreasureMap) && player.equippedSkill && !convo && !shopOpen && !gachaOpen && !craftOpen && !menuOpen && !choiceOpen && !jobSelectOpen && !debugOpen && !player.dead) ? "flex" : "none";
       skillBtn.classList.toggle("cool", player.skillCd>0);
       const jobFilterAvail=jobsWithUnlockedSkill();
-      skillJobBtn.style.display = ((inField||dungeonFloor) && jobFilterAvail.length && !convo && !shopOpen && !menuOpen && !choiceOpen && !jobSelectOpen && !debugOpen && !player.dead) ? "flex" : "none";
+      skillJobBtn.style.display = ((inField||dungeonFloor||activeTreasureMap) && jobFilterAvail.length && !convo && !shopOpen && !gachaOpen && !craftOpen && !menuOpen && !choiceOpen && !jobSelectOpen && !debugOpen && !player.dead) ? "flex" : "none";
       if(jobFilterAvail.length){ ensureSkillJobFilter();
         const fj=JOBS.find(j=>j.id===player.skillJobFilter)||jobFilterAvail[0];
         skillJobBtn.innerHTML=fj.ic+'<div class="jlabel">'+fj.name+'</div>';
