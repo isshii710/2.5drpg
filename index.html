@@ -1144,7 +1144,8 @@
     }
 
     // --- 建物の中（インテリア）：村の外れの遠方に各建物専用の小部屋を用意し、出入り時にテレポートする ---
-    const INTERIOR_BASE_X=500, INTERIOR_GAP=40;
+    // ダンジョン(1000+)・宝の地図(3000+)と絶対に重ならないよう、建物内部は負の座標側の遠方に配置する
+    const INTERIOR_BASE_X=-2000, INTERIOR_GAP=40;
     function makeInteriorRoom(building, idx){
       const ox=INTERIOR_BASE_X+idx*INTERIOR_GAP, oz=0;
       const halfW=4.6, halfD=4.2, doorLocalZ=halfD-0.6;
