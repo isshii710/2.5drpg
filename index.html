@@ -250,6 +250,18 @@
     font-family:inherit; transition:background .12s, border-color .12s; }
   .choice-btn:active{ background:rgba(230,194,104,.14); border-color:var(--light); }
 
+  /* ---- 真エンディング（終章の真ボスを倒すと表示） ---- */
+  #trueEnding{ position:fixed; inset:0; z-index:50; display:none; align-items:center; justify-content:center;
+    background:rgba(4,2,8,.82); backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px); }
+  #trueEnding .panel{ width:min(92vw,460px); padding:28px 24px; text-align:center;
+    background:linear-gradient(180deg, rgba(32,20,42,.98), rgba(10,6,16,.99));
+    border:1px solid var(--gold); border-radius:16px; box-shadow:0 20px 60px rgba(0,0,0,.7); }
+  #te-title{ font-family:"Hiragino Mincho ProN",serif; color:var(--gold); font-size:22px; letter-spacing:.14em; }
+  #te-text{ color:#e8dcc0; font-size:13px; line-height:1.9; margin:18px 0 22px; white-space:pre-line; }
+  #te-close{ padding:13px 28px; border:none; border-radius:10px; cursor:pointer;
+    font-family:"Hiragino Mincho ProN",serif; color:var(--ink); letter-spacing:.14em; font-size:15px;
+    background:linear-gradient(180deg,#f0dfae,#d3ad4d); box-shadow:0 4px 12px rgba(0,0,0,.4); }
+
   /* ---- 転職モーダル ---- */
   #jobselect{ position:fixed; inset:0; z-index:45; display:none; align-items:center; justify-content:center;
     background:rgba(8,6,16,.62); backdrop-filter:blur(2px); -webkit-backdrop-filter:blur(2px); }
@@ -429,6 +441,12 @@
     </div>
   </div></div>
 
+  <div id="trueEnding"><div class="panel">
+    <div id="te-title">光の継承者</div>
+    <div id="te-text"></div>
+    <button id="te-close">冒険を続ける</button>
+  </div></div>
+
   <div id="jobselect"><div class="panel">
     <div class="head">生き方を選ぶ</div>
     <div id="job-list"></div>
@@ -577,6 +595,13 @@
         <button class="dbtn wide" data-act="addAllMaterials">素材を全種類 大量入手</button>
         <button class="dbtn" data-act="addTestMap">宝の地図（Lv5）を入手</button>
         <button class="dbtn wide" data-act="addTestDemonMap">魔王の地図を入手</button>
+      </div>
+
+      <div class="sec-title">終章・封印の最奥</div>
+      <div class="row">
+        <button class="dbtn" data-act="unlockFinal">3村の選択を全て済ませる</button>
+        <button class="dbtn" data-act="gotoFinal">封印の最奥へ瞬間移動</button>
+        <button class="dbtn wide" data-act="killFinalBoss">深淵の顕現を即撃破</button>
       </div>
 
       <div class="sec-title">時間・天候</div>
@@ -944,6 +969,22 @@
       rect(g,4,4,24,14,"#8a5a32"); rect(g,5,5,22,12,"#a9713f");
       rect(g,8,8,16,2,"#5a3b22"); rect(g,8,12,12,2,"#5a3b22");
     }, 32, 32); }
+    // ---- 終章：封印の扉（イグナの奥）・真ボス「深淵の顕現」 ----
+    function makeSealedGateIcon(){ return pixTex((g)=>{
+      rect(g,2,4,36,42,"#161020"); rect(g,4,6,32,38,"#241a30");
+      ellip(g,20,22,13,17,"#0a0714");
+      rect(g,17,10,6,2,"#7a4fc9"); rect(g,17,32,6,2,"#7a4fc9");
+      ellip(g,20,22,5,6,"#a878e0"); ellip(g,20,22,2.4,3,"#e8d0ff");
+    }, 40, 46); }
+    function makeVoidBoss(){ return pixTex((g)=>{
+      const v="#160a1e", v2="#0a0512", glow="#c060ff", core="#ffb0ff";
+      ellip(g,24,32,18,16,v); ellip(g,24,32,18,15,v2);
+      rect(g,17,4,14,10,v); rect(g,17,4,14,3,v2);
+      rect(g,19,9,3,3,glow); rect(g,26,9,3,3,glow);
+      ellip(g,24,20,4,4,core);
+      rect(g,4,18,7,20,v); rect(g,37,18,7,20,v);
+      rect(g,15,46,8,7,v2); rect(g,25,46,8,7,v2);
+    }, 48, 54); }
 
     // 楕円塗り（ドット）
     function ellip(g,cx,cy,rx,ry,c){ g.fillStyle=c;
@@ -1320,6 +1361,7 @@
     let debugOpen=false;
     let arnicaSpringWaterMat=null, arnicaSpringTopMat=null;
     let ignaForgeMat=null, ignaForgeGlowMat=null;
+    let finalGateMesh=null, finalGateEntrance=null;
     const VILLAGES=[
       { idx:0, id:"lumina", name:"ルミナ村", fieldName:"ルミナ郊外", origin:{x:0,z:0}, spawn:{x:40,z:0},
         unlocked:()=>true, monsterMult:1,
@@ -1468,6 +1510,15 @@
       [[-13,8,.4],[11,9,-.3],[3,-14,.2]].forEach((h,i)=>{
         makeHouse(ox+h[0],oz+h[1],h[2],iWalls[i%iWalls.length],iRoofs[i%iRoofs.length],{villageIdx:2});
       });
+      // 封印の扉：3村すべての選択を終えると先へ進める、終章への入口
+      const gateRockMat=new THREE.MeshLambertMaterial({color:0x241a2c});
+      [[-2.6,-19.4,0.7,3.0],[2.6,-19.4,0.75,3.3]].forEach(p=>{
+        const rock=new THREE.Mesh(new THREE.CylinderGeometry(p[2]*0.7,p[2],p[3],7),gateRockMat);
+        rock.position.set(ox+p[0],p[3]/2,oz+p[1]); scene.add(rock); addSolid(ox+p[0],oz+p[1],p[2]*0.9);
+      });
+      finalGateMesh=makeBillboard(makeSealedGateIcon(),4.0,3.6); finalGateMesh.position.set(ox,0,oz-18);
+      addSolid(ox,oz-18,1.8); addShadow(ox,oz-18,4);
+      finalGateEntrance={ x:ox, z:oz-18+2.4, r:1.6, label:"封印の最奥" };
     })();
 
     // --- 装備の見た目（武器：手元の形状／防具：胴体の配色）武器・防具データ配列とインデックスを揃える ---
@@ -1915,7 +1966,9 @@
       { id:"v3_arrive", title:"イグナへ", desc:"アルニカの選択を終え、さらに東の山道を進む", target:1, locked:true },
       { id:"v3_greet", title:"イグナの人々", desc:"鍛冶頭ボルガ・焔の巫女スズナ・見習いテッサと話す", target:3, locked:true },
       { id:"v3_trial", title:"灰塵を祓う", desc:"大鍛冶炉の周りに湧く「灰塵の魔物」を3体たおす", target:3, locked:true },
-      { id:"v3_choice", title:"大鍛冶炉の選択", desc:"焔の巫女スズナに、炉の火をどうするか伝える", target:1, locked:true }
+      { id:"v3_choice", title:"大鍛冶炉の選択", desc:"焔の巫女スズナに、炉の火をどうするか伝える", target:1, locked:true },
+      { id:"final_arrive", title:"封印の最奥へ", desc:"イグナの奥に開いた、封印の扉をくぐる", target:1, locked:true },
+      { id:"final_boss", title:"深淵の顕現", desc:"すべての村の選択の果て、最奥の主を討つ", target:1, locked:true }
     ];
     player.quests={};
     QUESTS.forEach(q=>{ player.quests[q.id]={ status:q.locked?"locked":"active", progress:0 }; });
@@ -1939,6 +1992,11 @@
       if(def.id==="v2_trial" && player.quests.v2_choice.status==="locked") player.quests.v2_choice.status="active";
       if(def.id==="v3_greet" && player.quests.v3_trial.status==="locked") player.quests.v3_trial.status="active";
       if(def.id==="v3_trial" && player.quests.v3_choice.status==="locked") player.quests.v3_choice.status="active";
+      if(def.id==="v3_choice" && player.quests.final_arrive.status==="locked"){
+        player.quests.final_arrive.status="active";
+        showBanner("何かが目覚める気配","イグナの奥に、見知らぬ扉が開いた…");
+      }
+      if(def.id==="final_arrive" && player.quests.final_boss.status==="locked") player.quests.final_boss.status="active";
       saveGame(false);
     }
 
@@ -2124,7 +2182,8 @@
       scene.remove(m.mesh); scene.remove(m.sh); m.hpEl.remove();
       const bi=billboards.indexOf(m.mesh); if(bi>=0) billboards.splice(bi,1);
       const mi=monsters.indexOf(m); if(mi>=0) monsters.splice(mi,1);
-      if(m.isBoss) onBossDefeated();
+      if(m.isBoss && !m.treasureGuardian && !m.isFinalBoss) onBossDefeated();
+      if(m.isFinalBoss) onFinalBossDefeated();
       if(m.treasureGuardian) onTreasureGuardianDefeated(m);
       if(m.corrupted){ const v=VILLAGES[m.villageIdx]; if(v && v.trialQuestId) progressQuest(v.trialQuestId,1); }
     }
@@ -2253,7 +2312,7 @@
     const lanternLight=new THREE.PointLight(0xffcf8a,0,17,1.1); lanternLight.position.set(0,-40,0); scene.add(lanternLight);
     const lanternGlow=makeBillboard(flameTex,0.6,0.85); lanternGlow.visible=false; lanternGlow.material.color.setHex(0xffe6b0);
     function updateLantern(t){
-      const lit = player.accessory===1 && (dungeonFloor>0 || !!activeTreasureMap) && !player.dead;
+      const lit = player.accessory===1 && (dungeonFloor>0 || !!activeTreasureMap || finalFloor>0) && !player.dead;
       if(lit){
         lanternLight.position.set(player.x, 1.8, player.z);
         lanternLight.intensity=5.5+Math.sin(t*7)*0.4;
@@ -2528,7 +2587,7 @@
       transitionCooldown=0.8;
     }
     function enterTreasureMap(map){
-      if(dungeonFloor || indoorHouse || activeTreasureMap) return;
+      if(dungeonFloor || indoorHouse || activeTreasureMap || finalFloor) return;
       treasureReturnPos={ x:player.x, z:player.z };
       activeTreasureMap={ map, floor:1 };
       clearTreasureInstance();
@@ -2673,6 +2732,130 @@
       updateHUD(); buildCraftList(); saveGame(false);
     }
 
+    // ============================================================
+    //  終章：封印の最奥（3村すべての選択を終えると開く、最後のダンジョンと真ボス）
+    // ============================================================
+    const FINAL_BASE_X=6000, FINAL_GAP=70, FINAL_FLOORS_TOTAL=3;
+    let finalFloor=0, finalReturnPos=null, finalBossDefeated=false, finalTransitionCooldown=0;
+    const finalRooms=[], finalChests=[];
+    let initialFinalBossDefeated=false;
+    try{ const raw=localStorage.getItem("lumina_save_v1");
+      if(raw){ const d=JSON.parse(raw); initialFinalBossDefeated=!!d.finalBossDefeated; } }catch(e){}
+    const FINAL_BOSS_TYPE={ name:"深淵の顕現", tex:makeVoidBoss(), w:7.2,h:8.4, r:2.6, hp:1400, atk:42, def:16, exp:900, gold:800, speed:1.3, aggro:20, atkRange:3.0 };
+    function spawnFinalElite(room, pos){
+      const base=MON_TYPES[3], mult=3.2; // オーガをベースに、はるかに強い「堕ちた守人」として湧かせる
+      const T=Object.assign({},base,{ name:"堕ちた守人", hp:Math.round(base.hp*mult), atk:Math.round(base.atk*mult),
+        def:Math.round(base.def*mult), exp:Math.round(base.exp*mult), gold:Math.round(base.gold*mult) });
+      const m=makeBillboard(T.tex,T.w,T.h); m.position.set(pos.x,0,pos.z); m.material.color.setRGB(0.6,0.5,0.85);
+      const sh=new THREE.Mesh(new THREE.PlaneGeometry(T.r*2.4,T.r*2.4),shadowMat); sh.rotation.x=-Math.PI/2; sh.position.set(pos.x,0.03,pos.z); scene.add(sh);
+      const hpEl=document.createElement("div"); hpEl.className="monhp"; hpEl.innerHTML="<i></i>"; document.body.appendChild(hpEl);
+      monsters.push({ T, mesh:m, sh, x:pos.x, z:pos.z, hp:T.hp, maxHp:T.hp, atkCd:Math.random(), vx:0, vz:0, ph:Math.random()*7, hurtT:0, hpEl, hpShowT:0, face:1,
+        bounds:{ minX:room.ox-room.halfW+1, maxX:room.ox+room.halfW-1, minZ:room.oz-room.halfD+1, maxZ:room.oz+room.halfD-1 } });
+    }
+    function spawnFinalBoss(room){
+      const T=FINAL_BOSS_TYPE, x=room.ox, z=room.oz-room.halfD+2.6;
+      const m=makeBillboard(T.tex,T.w,T.h); m.position.set(x,0,z);
+      const sh=new THREE.Mesh(new THREE.PlaneGeometry(T.r*2.6,T.r*2.6),shadowMat); sh.rotation.x=-Math.PI/2; sh.position.set(x,0.03,z); scene.add(sh);
+      const hpEl=document.createElement("div"); hpEl.className="monhp"; hpEl.innerHTML="<i></i>"; document.body.appendChild(hpEl);
+      monsters.push({ T, mesh:m, sh, x, z, hp:T.hp, maxHp:T.hp, atkCd:1, vx:0, vz:0, ph:0, hurtT:0, hpEl, hpShowT:0, face:1, isBoss:true, isFinalBoss:true,
+        bounds:{ minX:room.ox-room.halfW+1, maxX:room.ox+room.halfW-1, minZ:room.oz-room.halfD+1, maxZ:room.oz+room.halfD-1 } });
+    }
+    function openFinalChest(chest){
+      if(chest.opened) return;
+      chest.opened=true; chest.mesh.material.color.setRGB(0.5,0.5,0.5);
+      if(Math.random()<0.5){ addGold(400); floatText(chest.x,chest.z,"+400G","#e6c268",true); }
+      else{ player.materials[4]=(player.materials[4]||0)+2; floatText(chest.x,chest.z,MATERIALS[4].ic+" "+MATERIALS[4].name+" ×2","#bfe8ff",true); }
+      saveGame(false);
+    }
+    function makeFinalRoom(floor){
+      const idx=floor-1, ox=FINAL_BASE_X+idx*FINAL_GAP, oz=0;
+      const halfW=9, halfD=8.5, entryZ=halfD-1.3, wallH=3.6;
+      const floorMesh=new THREE.Mesh(new THREE.PlaneGeometry(halfW*2,halfD*2), new THREE.MeshLambertMaterial({color:0x1c1424}));
+      floorMesh.rotation.x=-Math.PI/2; floorMesh.position.set(ox,0.01,oz); scene.add(floorMesh);
+      const outerFloor=new THREE.Mesh(new THREE.PlaneGeometry(50,50), new THREE.MeshBasicMaterial({color:0x030208}));
+      outerFloor.rotation.x=-Math.PI/2; outerFloor.position.set(ox,-0.05,oz); scene.add(outerFloor);
+      const wallMat=new THREE.MeshLambertMaterial({color:0x342546});
+      const bw=new THREE.Mesh(new THREE.BoxGeometry(halfW*2,wallH,0.3),wallMat); bw.position.set(ox,wallH/2,oz-halfD); scene.add(bw);
+      const lw=new THREE.Mesh(new THREE.BoxGeometry(0.3,wallH,halfD*2),wallMat); lw.position.set(ox-halfW,wallH/2,oz); scene.add(lw);
+      const rw=new THREE.Mesh(new THREE.BoxGeometry(0.3,wallH,halfD*2),wallMat); rw.position.set(ox+halfW,wallH/2,oz); scene.add(rw);
+      [[-4.5,-2],[4.5,-2],[-4.5,3],[4.5,3]].forEach(p=>{ const px=ox+p[0], pz=oz+p[1];
+        const pil=new THREE.Mesh(new THREE.CylinderGeometry(0.55,0.65,wallH,8),wallMat);
+        pil.position.set(px,wallH/2,pz); scene.add(pil); addSolid(px,pz,0.65); });
+      const torchSpots=[ {x:ox-halfW+0.4,y:1.9,z:oz-2}, {x:ox+halfW-0.4,y:1.9,z:oz-2}, {x:ox,y:1.9,z:oz-halfD+0.4} ];
+      let stairsDown=null, chest=null;
+      if(floor<FINAL_FLOORS_TOTAL){
+        const cx=ox+(Math.random()<0.5?-6.2:6.2), cz=oz+(Math.random()*2-1);
+        const chestMesh=makeBillboard(chestTex,1.1,1.0); chestMesh.position.set(cx,0,cz); addShadow(cx,cz,1.6);
+        chest={ x:cx, z:cz, r:1.4, mesh:chestMesh, opened:false };
+        finalChests.push(chest);
+        const sx=ox, sz=oz-halfD+1.4;
+        addGateRing(sx,sz,{rimCol:0x6a4fa0,hole:true});
+        makeBillboard(stairsTex,1.4,1.2).position.set(sx,0.02,sz);
+        stairsDown={x:sx,z:sz,r:1.5};
+      }
+      addGateRing(ox, oz+entryZ, {rimCol:0x7a5fb0,hole:false});
+      const room={ ox, oz, halfW, halfD, entryZ, torchSpots, chest, stairsDown, floor };
+      finalRooms[idx]=room;
+      if(floor<FINAL_FLOORS_TOTAL){
+        const spots=[ {x:ox-3,z:oz-3}, {x:ox+3,z:oz-3}, {x:ox+2,z:oz+2} ];
+        for(let i=0;i<3;i++) spawnFinalElite(room, spots[i%spots.length]);
+      }
+      if(floor===FINAL_FLOORS_TOTAL && !initialFinalBossDefeated) spawnFinalBoss(room);
+      return room;
+    }
+    for(let f=1; f<=FINAL_FLOORS_TOTAL; f++) makeFinalRoom(f);
+    if(initialFinalBossDefeated) finalBossDefeated=true;
+
+    function goToFinalFloor(floor){
+      const room=finalRooms[floor-1];
+      finalFloor=floor;
+      player.x=room.ox; player.z=room.oz+room.entryZ; player.facing="up";
+      placeTorches(room.torchSpots);
+      setZoneVisuals("dungeon");
+      showBanner("封印の最奥 "+floor+"階", floor>=FINAL_FLOORS_TOTAL?"深淵の気配":"");
+      finalTransitionCooldown=0.8;
+    }
+    function enterFinalDungeon(){
+      if(!player.villageEndings.igna){ showBanner("まだ何かに阻まれている","3つの村の選択をすべて終えてから…"); return; }
+      if(dungeonFloor || indoorHouse || activeTreasureMap || finalFloor) return;
+      finalReturnPos={ x:player.x, z:player.z };
+      progressQuest("final_arrive",1);
+      goToFinalFloor(1);
+    }
+    function exitFinalDungeonToSurface(){
+      finalFloor=0;
+      player.x=finalReturnPos.x; player.z=finalReturnPos.z; player.facing="down";
+      hideTorches(); setZoneVisuals("outdoor");
+      showBanner("イグナ郊外","FIELD ・ 魔物出現");
+      finalTransitionCooldown=0.8;
+    }
+    function goFinalDown(){ if(!finalFloor || finalFloor>=FINAL_FLOORS_TOTAL) return; goToFinalFloor(finalFloor+1); }
+    function goFinalUp(){ if(!finalFloor) return; if(finalFloor===1){ exitFinalDungeonToSurface(); return; } goToFinalFloor(finalFloor-1); }
+
+    function trueEndingText(){
+      const a=player.villageEndings.arnica, i=player.villageEndings.igna;
+      if(a==="good" && i==="good")
+        return "アルニカの泉も、イグナの炉も清められた。\n継承者が運んだ灯火は、二つの村に静かな光を取り戻した。\n\n深淵の顕現は砕け散り、その残光もまた、光の一部となって消えていく。\n――物語は、ひとまずの終わりを迎える。だが、旅はまだ続く。";
+      if(a==="bad" && i==="bad")
+        return "泉も、炉も。その力は、継承者自身の内に眠っている。\n光と闇、その両方を背負って――継承者はなお歩き続ける。\n\n深淵の顕現は、まるで鏡のように継承者自身の姿を映していた。\n打ち破ったのは敵か、それとも己の内にあるものか。";
+      else
+        return "一方は清められ、もう一方はその力を継承者の内に宿した。\n光と影、その狭間で――継承者は深淵の顕現を打ち破った。\n\n二つの選択がどう響き合うのか、その答えはまだ誰も知らない。\n――物語は、ひとまずの終わりを迎える。だが、旅はまだ続く。";
+    }
+    const trueEndingEl=document.getElementById("trueEnding"), teTextEl=document.getElementById("te-text");
+    function openTrueEnding(){
+      teTextEl.textContent=trueEndingText();
+      trueEndingEl.style.display="flex";
+    }
+    document.getElementById("te-close").addEventListener("click",()=>{ trueEndingEl.style.display="none"; });
+    function onFinalBossDefeated(){
+      finalBossDefeated=true;
+      progressQuest("final_boss",1);
+      floatText(player.x,player.z,"BOSS DEFEATED","#e0a8ff",true);
+      addGold(2000); addExp(1200);
+      saveGame(false);
+      setTimeout(()=>{ openTrueEnding(); },1200);
+    }
+
     // --- プレイヤー：移動補助・攻撃・回避・被弾 ---
     function movePlayer(dx,dz){
       if(dx && !collides(player.x+dx,player.z,player.r)) player.x+=dx;
@@ -2684,6 +2867,9 @@
         player.x=Math.max(room.ox-room.halfW+0.4, Math.min(room.ox+room.halfW-0.4, player.x));
         player.z=Math.max(room.oz-room.halfD+0.3, Math.min(room.oz+room.halfD-0.3, player.z));
       } else if(activeTreasureMap){ const room=treasureRooms[activeTreasureMap.floor-1];
+        player.x=Math.max(room.ox-room.halfW+0.4, Math.min(room.ox+room.halfW-0.4, player.x));
+        player.z=Math.max(room.oz-room.halfD+0.3, Math.min(room.oz+room.halfD-0.3, player.z));
+      } else if(finalFloor){ const room=finalRooms[finalFloor-1];
         player.x=Math.max(room.ox-room.halfW+0.4, Math.min(room.ox+room.halfW-0.4, player.x));
         player.z=Math.max(room.oz-room.halfD+0.3, Math.min(room.oz+room.halfD-0.3, player.z));
       } else {
@@ -2752,7 +2938,7 @@
       player.dead=true; player.hp=0; updateHUD(); showBanner("力尽きた…","村で目を覚ます");
       setTimeout(()=>{
         player.x=VILLAGE_ORIGIN.x; player.z=VILLAGE_ORIGIN.z+7; player.dead=false; player.hp=player.maxHp; player.iframes=1.5; player.dash=null; player.knock=null;
-        indoorHouse=null; dungeonFloor=0; if(activeTreasureMap){ clearTreasureInstance(); activeTreasureMap=null; }
+        indoorHouse=null; dungeonFloor=0; finalFloor=0; if(activeTreasureMap){ clearTreasureInstance(); activeTreasureMap=null; }
         hideTorches(); setZoneVisuals("outdoor"); updateHUD();
       },1500);
     }
@@ -2953,7 +3139,8 @@
         "SP "+(player.sp||0)+" ／ 装備スキル: "+(player.equippedSkill?SKILLS.find(s=>s.id===player.equippedSkill).name:"なし")+"\n"+
         "攻撃魔力 "+player.magicAtk+" ／ 回復魔力 "+player.magicHeal+" ／ スタミナ "+Math.ceil(player.stamina)+"/"+player.maxStamina+"（Lv"+(player.staminaLv||1)+"）\n"+
         "🎫 "+(player.gachaTickets||0)+" ／ 宝の地図 "+player.treasureMaps.length+"枚 ／ 素材 "+Object.values(player.materials).reduce((a,b)=>a+b,0)+"個\n"+
-        "地下遺跡ボス撃破: "+(dungeonBossDefeated?"済":"未")+" ／ アルニカの選択: "+(player.villageEndings.arnica||"未選択")+" ／ イグナの選択: "+(player.villageEndings.igna||"未選択");
+        "地下遺跡ボス撃破: "+(dungeonBossDefeated?"済":"未")+" ／ アルニカの選択: "+(player.villageEndings.arnica||"未選択")+" ／ イグナの選択: "+(player.villageEndings.igna||"未選択")+"\n"+
+        "封印の最奥: "+(finalFloor?finalFloor+"階に滞在中":"未到達")+" ／ 深淵の顕現撃破: "+(finalBossDefeated?"済":"未");
     }
     function forceQuestActive(id){ const st=player.quests[id]; if(st && st.status==="locked") st.status="active"; }
     const debugActions={
@@ -3008,6 +3195,20 @@
         if(menuOpen) updateMenu(); if(gachaOpen) buildGachaList(); },
       addTestDemonMap:()=>{ player.treasureMaps.push({ uid:mapUidSeq++, kind:"demon", level:3, demonIdx:(Math.random()*DEMON_LORDS.length)|0 });
         if(menuOpen) updateMenu(); if(gachaOpen) buildGachaList(); },
+      unlockFinal:()=>{
+        dungeonBossDefeated=true;
+        if(!player.villageEndings.arnica) player.villageEndings.arnica="good";
+        if(!player.villageEndings.igna) player.villageEndings.igna="good";
+        if(player.quests.final_arrive.status==="locked") player.quests.final_arrive.status="active";
+        floatText(player.x,player.z,"3村の選択を完了扱いにした","#e6c268",true); },
+      gotoFinal:()=>{
+        closeDebugMenu();
+        if(dungeonFloor||indoorHouse||activeTreasureMap) return;
+        if(!finalReturnPos) finalReturnPos={x:player.x,z:player.z};
+        goToFinalFloor(1); },
+      killFinalBoss:()=>{
+        const boss=monsters.find(m=>m.isFinalBoss);
+        if(boss) damageMonster(boss, boss.hp+99999, player.x, player.z); },
       unlockAllSkills:()=>{
         SKILLS.forEach(s=>{ player.skillsUnlocked[s.id]=true; });
         if(!player.equippedSkill) player.equippedSkill=SKILLS[0].id;
@@ -3042,7 +3243,7 @@
     }
     function saveGame(manual){
       try{
-        const pos = indoorHouse ? savedOutdoor : (dungeonFloor ? dungeonReturnPos : (activeTreasureMap ? treasureReturnPos : { x:player.x, z:player.z }));
+        const pos = indoorHouse ? savedOutdoor : (dungeonFloor ? dungeonReturnPos : (activeTreasureMap ? treasureReturnPos : (finalFloor ? finalReturnPos : { x:player.x, z:player.z })));
         const data={ v:1, level:player.level, exp:player.exp, expNext:player.expNext, gold:player.gold,
           baseMaxHp:player.baseMaxHp, baseAtk:player.baseAtk, baseDef:player.baseDef, hp:player.hp,
           baseMagicAtk:player.baseMagicAtk, baseMagicHeal:player.baseMagicHeal,
@@ -3051,7 +3252,7 @@
           accessory:player.accessory, ownedAcc:player.ownedAcc, potions:player.potions,
           job:player.job, villageEndings:player.villageEndings, corruptionPower:player.corruptionPower,
           sp:player.sp, skillsUnlocked:player.skillsUnlocked, equippedSkill:player.equippedSkill, skillJobFilter:player.skillJobFilter,
-          quests:player.quests, greeted:Array.from(greetedSet), dungeonBossDefeated,
+          quests:player.quests, greeted:Array.from(greetedSet), dungeonBossDefeated, finalBossDefeated,
           totalGameHours, weather, currentVillageIdx,
           gachaTickets:player.gachaTickets, materials:player.materials, treasureMaps:player.treasureMaps, mapUidSeq,
           x:pos.x, z:pos.z, savedAt:Date.now() };
@@ -3082,6 +3283,7 @@
         if(typeof d.mapUidSeq==="number") mapUidSeq=d.mapUidSeq;
         if(Array.isArray(d.greeted)){ greetedSet.clear(); d.greeted.forEach(n=>greetedSet.add(n)); }
         if(d.dungeonBossDefeated) dungeonBossDefeated=true;
+        if(d.finalBossDefeated) finalBossDefeated=true;
         if(typeof d.totalGameHours==="number") totalGameHours=d.totalGameHours;
         if(typeof d.weather==="string") weather=d.weather;
         currentVillageIdx=(typeof d.currentVillageIdx==="number")?d.currentVillageIdx:0;
@@ -3426,6 +3628,9 @@
         if(player.quests.v3_choice && player.quests.v3_choice.status==="active"){
           const suzuna=npcs.find(n=>n.name==="焔の巫女 スズナ"); if(suzuna) return { x:suzuna.x, z:suzuna.z };
         }
+        if(player.quests.final_arrive && player.quests.final_arrive.status==="active" && finalGateEntrance){
+          return { x:finalGateEntrance.x, z:finalGateEntrance.z };
+        }
         return null;
       }
       return null;
@@ -3486,15 +3691,15 @@
         mmCtx.strokeStyle="rgba(230,194,104,0.9)"; mmCtx.lineWidth=1.6; mmCtx.stroke();
         mmCtx.beginPath(); mmCtx.arc(qp.mx,qp.my,2.2,0,Math.PI*2); mmCtx.fillStyle="#ffd76b"; mmCtx.fill();
       }
-      if(!indoorHouse && !dungeonFloor && !activeTreasureMap){
+      if(!indoorHouse && !dungeonFloor && !activeTreasureMap && !finalFloor){
         const pp=mmPoint(player.x,player.z), [fx,fz]=faceVec(), ang=Math.atan2(fx,fz);
         mmCtx.save(); mmCtx.translate(pp.mx,pp.my); mmCtx.rotate(ang);
         mmCtx.beginPath(); mmCtx.moveTo(0,-5); mmCtx.lineTo(3.4,4); mmCtx.lineTo(-3.4,4); mmCtx.closePath();
         mmCtx.fillStyle="#7fe6d6"; mmCtx.fill(); mmCtx.restore();
       }
       mmLabel.textContent = indoorHouse ? indoorHouse.label+"\n（屋内）" : dungeonFloor ? "地下遺跡\n"+dungeonFloor+"階"
-        : activeTreasureMap ? "宝の地図\n"+activeTreasureMap.floor+"階" : "";
-      mmLabel.style.display = (indoorHouse||dungeonFloor||activeTreasureMap) ? "flex" : "none";
+        : activeTreasureMap ? "宝の地図\n"+activeTreasureMap.floor+"階" : finalFloor ? "封印の最奥\n"+finalFloor+"階" : "";
+      mmLabel.style.display = (indoorHouse||dungeonFloor||activeTreasureMap||finalFloor) ? "flex" : "none";
       mmLabel.style.whiteSpace="pre-line";
     }
     function tryAct(){
@@ -3505,6 +3710,7 @@
         if(nearTarget.type==="exit"){ exitBuilding(); return; }
         if(nearTarget.type==="chest"){ openChest(nearTarget.chest); return; }
         if(nearTarget.type==="tchest"){ openTreasureChest(nearTarget.chest); return; }
+        if(nearTarget.type==="fchest"){ openFinalChest(nearTarget.chest); return; }
         if(GREET_NAMES.has(nearTarget.name) && !greetedSet.has(nearTarget.name)){
           greetedSet.add(nearTarget.name); progressQuest("greet",1);
         } else if(V2_GREET_NAMES.has(nearTarget.name) && !greetedSet.has(nearTarget.name)){
@@ -3678,7 +3884,7 @@
       updateShots(dt);
       updateFireBursts(dt);
       // 魔物は屋外にいる間、定期的にランダムな位置へ湧く（村にいても裏でタイマーは進む）
-      spawnT-=dt; if(spawnT<=0){ spawnT=2.4; if(!indoorHouse && !dungeonFloor && !activeTreasureMap) spawnMonster(); }
+      spawnT-=dt; if(spawnT<=0){ spawnT=2.4; if(!indoorHouse && !dungeonFloor && !activeTreasureMap && !finalFloor) spawnMonster(); }
       // 村・屋内での自然回復（ダンジョンでは回復しない）
       const safeZone = !!indoorHouse || (!dungeonFloor && dist0(player.x,player.z)<FIELD_R);
       if(safeZone && !player.dead && player.hp<player.maxHp){
@@ -3688,7 +3894,7 @@
       if(armorSp && armorSp.type==="regen" && !player.dead && player.hp<player.maxHp){
         player.hp=Math.min(player.maxHp, player.hp+player.maxHp*armorSp.value*dt); updateHUD(); }
       // ゾーン表示切替（屋内・ダンジョンにいる間は判定自体を止める。松明は揺らめかせる）
-      if(!indoorHouse && !dungeonFloor && !activeTreasureMap){
+      if(!indoorHouse && !dungeonFloor && !activeTreasureMap && !finalFloor){
         const nowField = dist0(player.x,player.z)>FIELD_R;
         if(nowField!==inField){ inField=nowField;
           const v=VILLAGES[currentVillageIdx];
@@ -3696,7 +3902,7 @@
       }
       // 街道：村の外れまで歩くと隣村へ自動的に旅立つ
       roadTransitionCooldown=Math.max(0,roadTransitionCooldown-dt);
-      if(roadTransitionCooldown<=0 && !indoorHouse && !dungeonFloor && !activeTreasureMap && !convo && !shopOpen && !gachaOpen && !craftOpen && !menuOpen && !choiceOpen && !jobSelectOpen && !debugOpen && !player.dead){
+      if(roadTransitionCooldown<=0 && !indoorHouse && !dungeonFloor && !activeTreasureMap && !finalFloor && !convo && !shopOpen && !gachaOpen && !craftOpen && !menuOpen && !choiceOpen && !jobSelectOpen && !debugOpen && !player.dead){
         roadCheck: for(const v of VILLAGES){
           if(!v.roadFrom) continue;
           for(const rf of v.roadFrom){
@@ -3707,16 +3913,18 @@
         }
       }
       if(bannerT>0){ bannerT-=dt; if(bannerT<=0) banner.style.opacity="0"; }
-      if(dungeonFloor||activeTreasureMap){ torchLights.forEach((l,i)=>{ if(l.intensity>0) l.intensity=2.8+Math.sin(t*9+i*2)*0.4+Math.random()*0.15; }); }
+      if(dungeonFloor||activeTreasureMap||finalFloor){ torchLights.forEach((l,i)=>{ if(l.intensity>0) l.intensity=2.8+Math.sin(t*9+i*2)*0.4+Math.random()*0.15; }); }
       updateLantern(t);
       updateTimeWeather(dt, player.x, player.z);
 
       // ダンジョン入口・階段は歩いて踏むだけで自動的に切り替わる（攻撃ボタンと場所を取り合わないように）
       transitionCooldown=Math.max(0,transitionCooldown-dt);
       if(transitionCooldown<=0 && !convo && !shopOpen && !gachaOpen && !craftOpen && !menuOpen && !choiceOpen && !jobSelectOpen && !debugOpen && !player.dead){
-        if(!indoorHouse && !dungeonFloor && !activeTreasureMap){
+        if(!indoorHouse && !dungeonFloor && !activeTreasureMap && !finalFloor){
           const ddx=player.x-dungeonEntrance.x, ddz=player.z-dungeonEntrance.z;
           if(ddx*ddx+ddz*ddz < dungeonEntrance.r*dungeonEntrance.r) enterDungeon();
+          if(finalGateEntrance){ const fdx=player.x-finalGateEntrance.x, fdz=player.z-finalGateEntrance.z;
+            if(fdx*fdx+fdz*fdz < finalGateEntrance.r*finalGateEntrance.r) enterFinalDungeon(); }
         } else if(dungeonFloor){
           const room=dungeonRooms[dungeonFloor-1];
           const ux=room.ox, uz=room.oz+room.entryZ, udx=player.x-ux, udz=player.z-uz;
@@ -3729,6 +3937,12 @@
           if(udx*udx+udz*udz < 1.4*1.4) treasureGoUp();
           else if(room.stairsDown){ const sdx=player.x-room.stairsDown.x, sdz=player.z-room.stairsDown.z;
             if(sdx*sdx+sdz*sdz < room.stairsDown.r*room.stairsDown.r) treasureGoDown(); }
+        } else if(finalFloor){
+          const room=finalRooms[finalFloor-1];
+          const ux=room.ox, uz=room.oz+room.entryZ, udx=player.x-ux, udz=player.z-uz;
+          if(udx*udx+udz*udz < 1.4*1.4) goFinalUp();
+          else if(room.stairsDown){ const sdx=player.x-room.stairsDown.x, sdz=player.z-room.stairsDown.z;
+            if(sdx*sdx+sdz*sdz < room.stairsDown.r*room.stairsDown.r) goFinalDown(); }
         }
       }
 
@@ -3742,6 +3956,8 @@
         all=all.concat(dungeonChests.filter(c=>!c.opened && c.floor===dungeonFloor).map(c=>({ x:c.x, z:c.z, r:c.r, name:"宝箱", type:"chest", chest:c })));
       } else if(activeTreasureMap){
         all=all.concat(treasureChests.filter(c=>!c.opened).map(c=>({ x:c.x, z:c.z, r:c.r, name:"宝箱", type:"tchest", chest:c })));
+      } else if(finalFloor){
+        all=all.concat(finalChests.filter(c=>!c.opened).map(c=>({ x:c.x, z:c.z, r:c.r, name:"宝箱", type:"fchest", chest:c })));
       } else {
         all=all.concat(buildings.map(b=>({ x:b.doorX, z:b.doorZ, r:b.r, name:b.label, type:"door", building:b })));
       }
@@ -3752,7 +3968,7 @@
       else if(nearTarget){
         actBtn.classList.add("show"); actBtn.classList.remove("combat");
         actBtn.textContent = nearTarget.type==="door" ? "はいる" : nearTarget.type==="exit" ? "でる"
-          : (nearTarget.type==="chest"||nearTarget.type==="tchest") ? "あける"
+          : (nearTarget.type==="chest"||nearTarget.type==="tchest"||nearTarget.type==="fchest") ? "あける"
           : nearTarget.shop==="inn" ? "やすむ" : nearTarget.shop ? "みせ"
           : (examinables.some(e=>e.name===nearTarget.name)?"しらべる":"はなす");
         const s=worldToScreen(nearTarget.x,2.6,nearTarget.z);
@@ -3761,13 +3977,13 @@
         actBtn.classList.add("show","combat"); actBtn.textContent="こうげき"; promptEl.style.display="none";
       }
       // 回避ボタン（フィールドでのみ）
-      dodgeBtn.style.display = ((inField||dungeonFloor||activeTreasureMap) && !convo && !shopOpen && !gachaOpen && !craftOpen && !menuOpen && !choiceOpen && !jobSelectOpen && !debugOpen && !player.dead) ? "flex" : "none";
+      dodgeBtn.style.display = ((inField||dungeonFloor||activeTreasureMap||finalFloor) && !convo && !shopOpen && !gachaOpen && !craftOpen && !menuOpen && !choiceOpen && !jobSelectOpen && !debugOpen && !player.dead) ? "flex" : "none";
       dodgeBtn.classList.toggle("cool", player.dodgeCd>0);
       knob.classList.toggle("tired", player.stamina<player.maxStamina*0.15);
-      skillBtn.style.display = ((inField||dungeonFloor||activeTreasureMap) && player.equippedSkill && !convo && !shopOpen && !gachaOpen && !craftOpen && !menuOpen && !choiceOpen && !jobSelectOpen && !debugOpen && !player.dead) ? "flex" : "none";
+      skillBtn.style.display = ((inField||dungeonFloor||activeTreasureMap||finalFloor) && player.equippedSkill && !convo && !shopOpen && !gachaOpen && !craftOpen && !menuOpen && !choiceOpen && !jobSelectOpen && !debugOpen && !player.dead) ? "flex" : "none";
       skillBtn.classList.toggle("cool", player.skillCd>0);
       const jobFilterAvail=jobsWithUnlockedSkill();
-      skillJobBtn.style.display = ((inField||dungeonFloor||activeTreasureMap) && jobFilterAvail.length && !convo && !shopOpen && !gachaOpen && !craftOpen && !menuOpen && !choiceOpen && !jobSelectOpen && !debugOpen && !player.dead) ? "flex" : "none";
+      skillJobBtn.style.display = ((inField||dungeonFloor||activeTreasureMap||finalFloor) && jobFilterAvail.length && !convo && !shopOpen && !gachaOpen && !craftOpen && !menuOpen && !choiceOpen && !jobSelectOpen && !debugOpen && !player.dead) ? "flex" : "none";
       if(jobFilterAvail.length){ ensureSkillJobFilter();
         const fj=JOBS.find(j=>j.id===player.skillJobFilter)||jobFilterAvail[0];
         skillJobBtn.innerHTML=fj.ic+'<div class="jlabel">'+fj.name+'</div>';
